@@ -1,0 +1,36 @@
+# R package build artifacts
+*.tar.gz
+*.Rcheck/
+*.Rproj.user/
+
+# R session files
+.Rhistory
+.Rdata
+.RData
+.Ruserdata
+
+# man-md output (generated docs)
+man-md/
+
+# Byte-compiled / optimized
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+tests/testthat/_snaps/
+
+# Cached model weights (large files)
+*.safetensors
+*.bin
+*.pt
+.Rproj.user

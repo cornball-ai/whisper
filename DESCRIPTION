@@ -1,0 +1,21 @@
+Package: whisper
+Title: Native R Torch Implementation of OpenAI Whisper
+Version: 0.1.0
+Authors@R: person("Troy", "Hernandez", role = c("aut", "cre"),
+                  email = "troy@cornball.ai")
+Description: Speech-to-text transcription using a native R torch implementation
+    of OpenAI's Whisper model. Supports multiple model sizes from tiny (39M params)
+    to large-v3 (1.5B params). Provides automatic speech recognition with optional
+    language detection and timestamp generation.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    torch,
+    av,
+    jsonlite,
+    hfhub
+Suggests:
+    safetensors,
+    tinytest

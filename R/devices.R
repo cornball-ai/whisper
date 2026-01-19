@@ -1,0 +1,75 @@
+#' Device and Dtype Management
+#'
+#' Utilities for managing torch devices and data types.
+
+#' Get Default Device
+#'
+#' @return torch device object
+#' @export
+whisper_device <- function() {
+
+  if (torch::cuda_is_available()) {
+    torch::torch_device("cuda")
+  } else {
+    torch::torch_device("cpu")
+  }
+}
+
+#' Get Default Dtype
+#'
+#' @param device torch device
+#' @return torch dtype
+#' @export
+whisper_dtype <- function(device = whisper_device()) {
+  # Use float16 on CUDA, float32 on CPU
+
+  if (device$type == "cuda") {
+    torch::torch_float16()
+  } else {
+    torch::torch_float()
+  }
+}
+
+#' Parse Device Argument
+#'
+#' @param device Character or torch device. "auto" uses GPU if available.
+#' @return torch device object
+parse_device <- function(device = "auto") {
+
+  if (is.character(device)) {
+    if (device == "auto") {
+      whisper_device()
+    } else {
+      torch::torch_device(device)
+    }
+  } else {
+    device
+  }
+}
+
+#' Parse Dtype Argument
+#'
+#' @param dtype Character or torch dtype. "auto" uses float16 on GPU, float32 on CPU.
+#' @param device torch device (used for auto selection)
+#' @return torch dtype
+parse_dtype <- function(
+  dtype = "auto",
+  device = whisper_device()
+) {
+  if (is.character(dtype)) {
+    if (dtype == "auto") {
+      whisper_dtype(device)
+    } else if (dtype == "float16") {
+      torch::torch_float16()
+    } else if (dtype == "float32") {
+      torch::torch_float()
+    } else if (dtype == "bfloat16") {
+      torch::torch_bfloat16()
+    } else {
+      stop("Unknown dtype: ", dtype)
+    }
+  } else {
+    dtype
+  }
+}
+

@@ -1,0 +1,30 @@
+# RStudio project files
+^.*\.Rproj$
+^\.Rproj\.user$
+
+# Development documentation
+^CLAUDE\.md$
+^fyi\.md$
+
+# Git files
+^\.git$
+^\.gitignore$
+
+# Generated documentation
+^man-md$
+
+# GitHub files
+^\.github$
+^README\.Rmd$
+
+# CI/CD
+^\.travis\.yml$
+^codecov\.yml$
+^appveyor\.yml$
+
+# Package development
+^cran-comments\.md$
+^revdep$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
