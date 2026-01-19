@@ -35,7 +35,7 @@ transcribe <- function(
 
   # Load model
   if (verbose) message("Loading model: ", model)
-  whisper <- load_whisper_model(model, device = device, dtype = dtype)
+  whisper <- load_whisper_model(model, device = device, dtype = dtype, verbose = verbose)
 
   # Load tokenizer
   tokenizer <- whisper_tokenizer(model)

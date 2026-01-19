@@ -24,10 +24,14 @@ load_audio <- function(file) {
 
   # av::read_audio_bin returns raw PCM samples as 32-bit signed integers
   # channels = 1 for mono, sample_rate = 16000 for Whisper
-  # Suppress warnings about "Insufficient memory to recode all samples"
+  # Suppress FFmpeg stderr messages ("Insufficient memory to recode all samples")
   audio <- suppressWarnings(
-    av::read_audio_bin(file, channels = 1L, sample_rate = WHISPER_SAMPLE_RATE)
+    invisible(capture.output(
+      result <- av::read_audio_bin(file, channels = 1L, sample_rate = WHISPER_SAMPLE_RATE),
+      type = "message"
+    ))
   )
+  audio <- result
 
   # Normalize 32-bit signed integers to -1 to 1 range
   as.numeric(audio) / 2147483648
@@ -298,7 +302,11 @@ audio_to_mel <- function(
 #' @param file Path to audio file
 #' @return Duration in seconds
 audio_duration <- function(file) {
-  info <- av::av_media_info(file)
+  # Suppress FFmpeg stderr messages ("Estimating duration from bitrate")
+  invisible(capture.output(
+    info <- av::av_media_info(file),
+    type = "message"
+  ))
   info$duration
 }
 

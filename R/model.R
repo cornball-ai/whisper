@@ -69,13 +69,15 @@ whisper_model <- torch::nn_module(
 #' @param device Device to load model on ("auto", "cpu", "cuda")
 #' @param dtype Data type ("auto", "float16", "float32")
 #' @param download If TRUE, download model if not present
+#' @param verbose Print loading messages
 #' @return WhisperModel module
 #' @export
 load_whisper_model <- function(
   model = "tiny",
   device = "auto",
   dtype = "auto",
-  download = TRUE
+  download = TRUE,
+  verbose = TRUE
 ) {
   # Parse device and dtype
 
@@ -93,7 +95,7 @@ load_whisper_model <- function(
 
   # Load weights
   weights_path <- get_weights_path(model)
-  load_whisper_weights(whisper, weights_path)
+  load_whisper_weights(whisper, weights_path, verbose = verbose)
 
   # Move to device and dtype
   whisper$to(device = device, dtype = dtype)
@@ -108,15 +110,17 @@ load_whisper_model <- function(
 #'
 #' @param model WhisperModel module
 #' @param weights_path Path to safetensors file
+#' @param verbose Print loading messages
 load_whisper_weights <- function(
   model,
-  weights_path
+  weights_path,
+  verbose = TRUE
 ) {
   if (!requireNamespace("safetensors", quietly = TRUE)) {
     stop("safetensors package required. Install with: install.packages('safetensors')")
   }
 
-  message("Loading weights from: ", weights_path)
+  if (verbose) message("Loading weights from: ", weights_path)
 
   # Load safetensors
   weights <- safetensors::safe_load_file(weights_path, framework = "torch")

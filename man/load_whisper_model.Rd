@@ -8,7 +8,8 @@ load_whisper_model(
   model = "tiny",
   device = "auto",
   dtype = "auto",
-  download = TRUE
+  download = TRUE,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ load_whisper_model(
 \item{dtype}{Data type ("auto", "float16", "float32")}
 
 \item{download}{If TRUE, download model if not present}
+
+\item{verbose}{Print loading messages}
 }
 \value{
 WhisperModel module
