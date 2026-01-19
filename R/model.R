@@ -34,9 +34,9 @@ whisper_model <- torch::nn_module(
     logits <- self$decoder$get_logits(decoder_result$hidden_states)
 
     list(
-    logits = logits,
-    encoder_output = encoder_output,
-    kv_cache = decoder_result$kv_cache
+      logits = logits,
+      encoder_output = encoder_output,
+      kv_cache = decoder_result$kv_cache
     )
   },
 
@@ -55,8 +55,8 @@ whisper_model <- torch::nn_module(
     logits <- self$decoder$get_logits(decoder_result$hidden_states)
 
     list(
-    logits = logits,
-    kv_cache = decoder_result$kv_cache
+      logits = logits,
+      kv_cache = decoder_result$kv_cache
     )
   }
 )

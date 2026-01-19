@@ -26,9 +26,9 @@ whisper_decoder_layer <- torch::nn_module(
     # FFN
     self$mlp_ln <- torch::nn_layer_norm(n_state)
     self$mlp <- torch::nn_sequential(
-    torch::nn_linear(n_state, n_state * 4L),
-    torch::nn_gelu(),
-    torch::nn_linear(n_state * 4L, n_state)
+      torch::nn_linear(n_state, n_state * 4L),
+      torch::nn_gelu(),
+      torch::nn_linear(n_state * 4L, n_state)
     )
   },
 
@@ -66,8 +66,8 @@ whisper_decoder_layer <- torch::nn_module(
 
     # Return output and updated caches
     list(
-    output = x,
-    kv_cache = list(self = new_self_kv, cross = new_cross_kv)
+      output = x,
+      kv_cache = list(self = new_self_kv, cross = new_cross_kv)
     )
   }
 )
@@ -146,8 +146,8 @@ whisper_decoder <- torch::nn_module(
 
     # Position indices (R torch uses 1-based indexing)
     positions <- torch::torch_arange(offset + 1L, offset + seq_len,
-    dtype = torch::torch_long(),
-    device = x$device)
+      dtype = torch::torch_long(),
+      device = x$device)
 
     # Add positional embedding
     pos_emb <- self$positional_embedding(positions)

@@ -47,16 +47,16 @@ whisper_tokenizer <- function(
 
   structure(
     list(
-    vocab = vocab,
-    id_to_token = id_to_token,
-    merges = merges,
-    merge_ranks = merge_ranks,
-    special_tokens = special,
-    model = model,
-    encode = function(text) tokenizer_encode(text, vocab, merge_ranks),
-    decode = function(ids) tokenizer_decode(ids, id_to_token, special),
-    encode_special = function(token) vocab[[token]],
-    n_vocab = length(vocab)
+      vocab = vocab,
+      id_to_token = id_to_token,
+      merges = merges,
+      merge_ranks = merge_ranks,
+      special_tokens = special,
+      model = model,
+      encode = function(text) tokenizer_encode(text, vocab, merge_ranks),
+      decode = function(ids) tokenizer_decode(ids, id_to_token, special),
+      encode_special = function(token) vocab[[token]],
+      n_vocab = length(vocab)
     ),
     class = "whisper_tokenizer"
   )

@@ -27,9 +27,9 @@ load_audio <- function(file) {
   # Suppress FFmpeg stderr messages ("Insufficient memory to recode all samples")
   audio <- suppressWarnings(
     invisible(capture.output(
-      result <- av::read_audio_bin(file, channels = 1L, sample_rate = WHISPER_SAMPLE_RATE),
-      type = "message"
-    ))
+        result <- av::read_audio_bin(file, channels = 1L, sample_rate = WHISPER_SAMPLE_RATE),
+        type = "message"
+      ))
   )
   audio <- result
 
@@ -304,9 +304,9 @@ audio_to_mel <- function(
 audio_duration <- function(file) {
   # Suppress FFmpeg stderr messages ("Estimating duration from bitrate")
   invisible(capture.output(
-    info <- av::av_media_info(file),
-    type = "message"
-  ))
+      info <- av::av_media_info(file),
+      type = "message"
+    ))
   info$duration
 }
 

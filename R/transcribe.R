@@ -190,8 +190,8 @@ greedy_decode <- function(
 
         # Prepare next input (decoder expects 0-indexed token IDs, adds 1 internally)
         tokens <- torch::torch_tensor(matrix(next_token_id, nrow = 1L),
-        dtype = torch::torch_long(),
-        device = device)
+          dtype = torch::torch_long(),
+          device = device)
       }
     })
 
@@ -327,11 +327,11 @@ extract_segments <- function(
 
         if (nchar(text) > 0) {
           segments <- c(segments, list(data.frame(
-            start = current_start,
-            end = timestamp,
-            text = text,
-            stringsAsFactors = FALSE
-            )))
+                start = current_start,
+                end = timestamp,
+                text = text,
+                stringsAsFactors = FALSE
+              )))
         }
 
         current_tokens <- integer(0)
@@ -353,11 +353,11 @@ extract_segments <- function(
 
     if (nchar(text) > 0) {
       segments <- c(segments, list(data.frame(
-        start = current_start,
-        end = current_start + 0.5, # Estimate
-        text = text,
-        stringsAsFactors = FALSE
-        )))
+            start = current_start,
+            end = current_start + 0.5, # Estimate
+            text = text,
+            stringsAsFactors = FALSE
+          )))
     }
   }
 

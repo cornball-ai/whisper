@@ -130,9 +130,9 @@ whisper_encoder_layer <- torch::nn_module(
 
     self$mlp_ln <- torch::nn_layer_norm(n_state)
     self$mlp <- torch::nn_sequential(
-    torch::nn_linear(n_state, n_state * 4L),
-    torch::nn_gelu(),
-    torch::nn_linear(n_state * 4L, n_state)
+      torch::nn_linear(n_state, n_state * 4L),
+      torch::nn_gelu(),
+      torch::nn_linear(n_state * 4L, n_state)
     )
   },
 
@@ -198,7 +198,7 @@ whisper_encoder <- torch::nn_module(
 
     position <- torch::torch_arange(0, max_len - 1, dtype = torch::torch_float()) $unsqueeze(2L)
     div_term <- torch::torch_exp(
-    torch::torch_arange(0, dim - 1, 2, dtype = torch::torch_float()) $mul(- log(10000.0) / dim)
+      torch::torch_arange(0, dim - 1, 2, dtype = torch::torch_float()) $mul(- log(10000.0) / dim)
     )
 
     # Sin for even indices, cos for odd
