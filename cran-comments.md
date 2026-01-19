@@ -7,7 +7,7 @@
 ## Test environments
 
 * local Ubuntu 24.04, R 4.4.x
-* GitHub Actions: ubuntu-latest, windows-latest, macos-latest (R release)
+* GitHub Actions (r-ci): ubuntu-latest, macos-latest
 
 ## Package dependencies
 
