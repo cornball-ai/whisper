@@ -33,7 +33,9 @@ jobs:
         run: ./run.sh install_all
 
       - name: Install torch
-        run: Rscript -e 'torch::install_torch()'
+        run: |
+          mkdir -p $TORCH_HOME
+          Rscript -e 'torch::install_torch()'
 
       - name: Test
         run: ./run.sh run_tests
