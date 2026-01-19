@@ -1,8 +1,9 @@
+autoregressive
 HuggingFace
-OpenAI
 mel
-spectrogram
+OpenAI
+OpenAI's
 safetensors
+spectrogram
 tokenizer
 transcription
-autoregressive

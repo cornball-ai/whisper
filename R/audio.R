@@ -15,6 +15,7 @@ WHISPER_N_SAMPLES <- WHISPER_CHUNK_LENGTH * WHISPER_SAMPLE_RATE# 480000
 #'
 #' @param file Path to audio file (WAV, MP3, etc.)
 #' @return Numeric vector of audio samples normalized to -1 to 1 range
+#' @importFrom utils capture.output
 #' @export
 load_audio <- function(file) {
 

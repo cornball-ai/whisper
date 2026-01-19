@@ -13,5 +13,6 @@ export(whisper_dtype)
 export(whisper_tokenizer)
 
 importFrom(stats,setNames)
+importFrom(utils,capture.output)
 importFrom(utils,download.file)
 importFrom(utils,read.csv)
