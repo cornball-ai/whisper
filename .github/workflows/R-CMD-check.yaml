@@ -10,6 +10,7 @@ on:
 
 env:
   _R_CHECK_FORCE_SUGGESTS_: "false"
+  TORCH_HOME: /tmp/torch
 
 jobs:
   R-CMD-check:
