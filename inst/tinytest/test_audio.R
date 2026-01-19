@@ -1,5 +1,11 @@
 # Tests for audio preprocessing
 
+# Skip if torch not fully installed (libtorch binaries required)
+if (!requireNamespace("torch", quietly = TRUE) ||
+    !torch::torch_is_installed()) {
+  exit_file("torch not fully installed")
+}
+
 # Test mel filterbank creation
 fb <- whisper:::create_mel_filterbank_fallback(n_mels = 80L)
 expect_equal(nrow(fb), 80)

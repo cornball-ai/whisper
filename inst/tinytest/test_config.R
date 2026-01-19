@@ -1,5 +1,11 @@
 # Tests for configuration
 
+# Skip if torch not fully installed (package may not load)
+if (!requireNamespace("torch", quietly = TRUE) ||
+    !torch::torch_is_installed()) {
+  exit_file("torch not fully installed")
+}
+
 # Test config loading
 expect_silent(cfg <- whisper_config("tiny"))
 expect_equal(cfg$n_mels, 80L)

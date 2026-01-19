@@ -1,5 +1,11 @@
 # Tests for tokenizer
 
+# Skip if torch not fully installed (package may not load)
+if (!requireNamespace("torch", quietly = TRUE) ||
+    !torch::torch_is_installed()) {
+  exit_file("torch not fully installed")
+}
+
 # Test initial tokens generation
 tokens <- whisper:::get_initial_tokens("en", "transcribe", timestamps = TRUE)
 expect_true(50258L %in% tokens) # sot

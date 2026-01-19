@@ -1,5 +1,11 @@
 # Tests for transcribe function
 
+# Skip if torch not fully installed (package may not load)
+if (!requireNamespace("torch", quietly = TRUE) ||
+    !torch::torch_is_installed()) {
+  exit_file("torch not fully installed")
+}
+
 # Test clean_text
 expect_equal(whisper:::clean_text("  hello  world  "), "hello world")
 expect_equal(whisper:::clean_text("<|en|>hello<|endoftext|>"), "hello")
