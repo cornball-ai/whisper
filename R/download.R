@@ -68,7 +68,11 @@ download_whisper_model <- function(
   # Get model size for user info
 
   size_mb <- .model_sizes[[model]]
-  size_str <- if (!is.null(size_mb)) paste0("~", size_mb, " MB") else "unknown size"
+  if (!is.null(size_mb)) {
+    size_str <- paste0("~", size_mb, " MB")
+  } else {
+    size_str <- "unknown size"
+  }
 
   # Ask for consent in interactive mode
 

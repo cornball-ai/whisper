@@ -17,9 +17,11 @@ remotes::install_github("cornball-ai/whisper")
 ```r
 library(whisper)
 
-# Transcribe audio (prompts to download model on first use)
-result <- transcribe("audio.wav")
-print(result$text)
+# Transcribe the bundled JFK "Ask not" speech (prompts to download model on first use)
+jfk <- system.file("audio", "jfk.mp3", package = "whisper")
+result <- transcribe(jfk)
+result$text
+#> "Ask not what your country can do for you, ask what you can do for your country."
 ```
 
 On first use, you'll be prompted to download the model:
