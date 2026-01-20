@@ -7,15 +7,11 @@
 #' Load or create a Whisper tokenizer from HuggingFace vocab files.
 #'
 #' @param model Model name for vocab lookup
-#' @param cache_dir Directory for cached vocab files
 #' @return Tokenizer object (list with encode/decode functions)
 #' @export
-whisper_tokenizer <- function(
-  model = "tiny",
-  cache_dir = getOption("whisper.cache_dir")
-) {
+whisper_tokenizer <- function(model = "tiny") {
   # Ensure vocab files are downloaded
-  vocab_dir <- ensure_tokenizer_files(model, cache_dir)
+  vocab_dir <- ensure_tokenizer_files(model)
 
   # Load vocab and merges
   vocab_file <- file.path(vocab_dir, "vocab.json")
@@ -228,12 +224,8 @@ decode_bpe_bytes <- function(text) {
 #' Ensure Tokenizer Files are Downloaded
 #'
 #' @param model Model name
-#' @param cache_dir Cache directory (unused, kept for API compatibility)
 #' @return Path to vocab directory (directory containing vocab.json)
-ensure_tokenizer_files <- function(
-  model,
-  cache_dir
-) {
+ensure_tokenizer_files <- function(model) {
   cfg <- whisper_config(model)
   repo <- cfg$hf_repo
 
@@ -248,11 +240,7 @@ ensure_tokenizer_files <- function(
 #' Download Tokenizer Files from HuggingFace
 #'
 #' @param model Model name
-#' @param vocab_dir Directory to save files (unused, kept for API compatibility)
-download_tokenizer_files <- function(
-  model,
-  vocab_dir
-) {
+download_tokenizer_files <- function(model) {
   cfg <- whisper_config(model)
   repo <- cfg$hf_repo
 

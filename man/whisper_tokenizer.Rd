@@ -4,12 +4,10 @@
 \alias{whisper_tokenizer}
 \title{Whisper BPE Tokenizer}
 \usage{
-whisper_tokenizer(model = "tiny", cache_dir = getOption("whisper.cache_dir"))
+whisper_tokenizer(model = "tiny")
 }
 \arguments{
 \item{model}{Model name for vocab lookup}
-
-\item{cache_dir}{Directory for cached vocab files}
 }
 \value{
 Tokenizer object (list with encode/decode functions)

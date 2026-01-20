@@ -4,12 +4,10 @@
 \alias{ensure_tokenizer_files}
 \title{Ensure Tokenizer Files are Downloaded}
 \usage{
-ensure_tokenizer_files(model, cache_dir)
+ensure_tokenizer_files(model)
 }
 \arguments{
 \item{model}{Model name}
-
-\item{cache_dir}{Cache directory (unused, kept for API compatibility)}
 }
 \value{
 Path to vocab directory (directory containing vocab.json)

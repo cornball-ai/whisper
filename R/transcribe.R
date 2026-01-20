@@ -33,9 +33,10 @@ transcribe <- function(
   device <- parse_device(device)
   dtype <- parse_dtype(dtype, device)
 
-  # Load model
+  # Load model (prompt to download if needed)
   if (verbose) message("Loading model: ", model)
-  whisper <- load_whisper_model(model, device = device, dtype = dtype, verbose = verbose)
+  whisper <- load_whisper_model(model, device = device, dtype = dtype,
+    download = TRUE, verbose = verbose)
 
   # Load tokenizer
   tokenizer <- whisper_tokenizer(model)

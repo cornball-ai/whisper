@@ -68,7 +68,7 @@ whisper_model <- torch::nn_module(
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
 #' @param device Device to load model on ("auto", "cpu", "cuda")
 #' @param dtype Data type ("auto", "float16", "float32")
-#' @param download If TRUE, download model if not present
+#' @param download If TRUE and model not present, prompt to download
 #' @param verbose Print loading messages
 #' @return WhisperModel module
 #' @export
@@ -76,17 +76,26 @@ load_whisper_model <- function(
   model = "tiny",
   device = "auto",
   dtype = "auto",
-  download = TRUE,
+  download = FALSE,
   verbose = TRUE
 ) {
   # Parse device and dtype
-
   device <- parse_device(device)
   dtype <- parse_dtype(dtype, device)
 
-  # Download model if needed
-  if (download && !model_exists(model)) {
-    download_whisper_model(model)
+  # Check if model exists
+  if (!model_exists(model)) {
+    if (download) {
+      # download_whisper_model handles interactive consent
+      download_whisper_model(model)
+    } else {
+      stop(
+        "Model '", model, "' not found. ",
+        "Run download_whisper_model('", model, "') first, ",
+        "or use load_whisper_model('", model, "', download = TRUE).",
+        call. = FALSE
+      )
+    }
   }
 
   # Get config and create model

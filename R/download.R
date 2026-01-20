@@ -2,6 +2,16 @@
 #'
 #' Download Whisper models from HuggingFace using hfhub.
 
+# Approximate model sizes in MB
+.model_sizes <- c(
+
+  tiny = 151,
+  base = 290,
+  small = 967,
+  medium = 3055,
+  `large-v3` = 6174
+)
+
 #' Get Model Cache Path
 #'
 #' @param model Model name
@@ -18,6 +28,7 @@ get_model_path <- function(model) {
 #'
 #' @param model Model name
 #' @return TRUE if model weights exist locally
+#' @export
 model_exists <- function(model) {
   config <- whisper_config(model)
   repo <- config$hf_repo
@@ -33,9 +44,12 @@ model_exists <- function(model) {
 
 #' Download Model from HuggingFace
 #'
-#' @param model Model name
+#' Download Whisper model weights and tokenizer files from HuggingFace.
+#' In interactive sessions, asks for user consent before downloading.
+#'
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
 #' @param force Re-download even if exists
-#' @return Path to model directory
+#' @return Path to model directory (invisibly)
 #' @export
 download_whisper_model <- function(
   model = "tiny",
@@ -43,6 +57,30 @@ download_whisper_model <- function(
 ) {
   config <- whisper_config(model)
   repo <- config$hf_repo
+
+  # Check if already downloaded
+
+  if (!force && model_exists(model)) {
+    message("Model '", model, "' is already downloaded.")
+    return(invisible(get_model_path(model)))
+  }
+
+  # Get model size for user info
+
+  size_mb <- .model_sizes[[model]]
+  size_str <- if (!is.null(size_mb)) paste0("~", size_mb, " MB") else "unknown size"
+
+  # Ask for consent in interactive mode
+
+  if (interactive()) {
+    ans <- utils::askYesNo(
+      paste0("Download '", model, "' model (", size_str, ") from HuggingFace?"),
+      default = TRUE
+    )
+    if (!isTRUE(ans)) {
+      stop("Download cancelled.", call. = FALSE)
+    }
+  }
 
   message("Downloading ", model, " model from HuggingFace (", repo, ")...")
 

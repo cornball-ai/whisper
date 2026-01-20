@@ -62,62 +62,16 @@ pad_or_trim <- function(
 
 #' Load Pre-computed Mel Filterbank
 #'
-#' Load the official Whisper mel filterbank from cached CSV file.
-#' Falls back to computing on-the-fly if not available.
+#' Load the official Whisper mel filterbank from bundled CSV file.
 #'
 #' @param n_mels Number of mel bins (80 or 128)
 #' @return Mel filterbank matrix (n_mels x n_freqs)
 load_mel_filterbank <- function(n_mels = 80L) {
-  cache_dir <- getOption("whisper.cache_dir", file.path(Sys.getenv("HOME"), ".cache", "whisper"))
-  csv_file <- file.path(cache_dir, "assets", paste0("mel_", n_mels, ".csv"))
-
-  if (file.exists(csv_file)) {
-    # Load pre-computed filterbank
-    filterbank <- as.matrix(read.csv(csv_file, header = FALSE))
-    return(filterbank)
+  csv_file <- system.file("assets", paste0("mel_", n_mels, ".csv"), package = "whisper")
+  if (csv_file == "") {
+    stop("Mel filterbank file not found for n_mels = ", n_mels)
   }
-
-  # Fallback: download the filterbank
-  assets_dir <- file.path(cache_dir, "assets")
-  if (!dir.exists(assets_dir)) {
-    dir.create(assets_dir, recursive = TRUE)
-  }
-
-  npz_url <- "https://github.com/openai/whisper/raw/main/whisper/assets/mel_filters.npz"
-  npz_file <- file.path(assets_dir, "mel_filters.npz")
-
-  if (!file.exists(npz_file)) {
-    message("Downloading mel filterbank from OpenAI Whisper...")
-    tryCatch({
-        download.file(npz_url, npz_file, mode = "wb", quiet = TRUE)
-      }, error = function(e) {
-        warning("Could not download mel filterbank, computing on-the-fly: ", e$message)
-        return(create_mel_filterbank_fallback(n_mels = n_mels))
-      })
-  }
-
-  # Try to extract with Python/numpy if available
-  if (file.exists(npz_file) && !file.exists(csv_file)) {
-    message("Extracting mel filterbank (requires Python with numpy)...")
-    extract_cmd <- sprintf(
-      'python3 -c "import numpy as np; data = np.load(\'%s\'); np.savetxt(\'%s\', data[\'mel_%d\'], delimiter=\',\')"',
-      npz_file, csv_file, n_mels
-    )
-    result <- system(extract_cmd, ignore.stderr = TRUE)
-
-    if (result != 0 || !file.exists(csv_file)) {
-      warning("Could not extract mel filterbank, computing on-the-fly")
-      return(create_mel_filterbank_fallback(n_mels = n_mels))
-    }
-  }
-
-  if (file.exists(csv_file)) {
-    filterbank <- as.matrix(read.csv(csv_file, header = FALSE))
-    return(filterbank)
-  }
-
-  # Final fallback
-  create_mel_filterbank_fallback(n_mels = n_mels)
+  as.matrix(read.csv(csv_file, header = FALSE))
 }
 
 #' Create Mel Filterbank (Fallback)

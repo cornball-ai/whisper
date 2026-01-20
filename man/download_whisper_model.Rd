@@ -7,13 +7,14 @@
 download_whisper_model(model = "tiny", force = FALSE)
 }
 \arguments{
-\item{model}{Model name}
+\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
 
 \item{force}{Re-download even if exists}
 }
 \value{
-Path to model directory
+Path to model directory (invisibly)
 }
 \description{
-Download Model from HuggingFace
+Download Whisper model weights and tokenizer files from HuggingFace. In
+interactive sessions, asks for user consent before downloading.
 }

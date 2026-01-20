@@ -13,6 +13,5 @@ load_mel_filterbank(n_mels = 80L)
 Mel filterbank matrix (n_mels x n_freqs)
 }
 \description{
-Load the official Whisper mel filterbank from cached CSV file. Falls
-back to computing on-the-fly if not available.
+Load the official Whisper mel filterbank from bundled CSV file.
 }

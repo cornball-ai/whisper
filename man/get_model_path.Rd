@@ -2,7 +2,7 @@
 % Please edit documentation in R/download.R
 \name{get_model_path}
 \alias{get_model_path}
-\title{Model Download Utilities}
+\title{Get Model Cache Path}
 \usage{
 get_model_path(model)
 }
@@ -13,6 +13,5 @@ get_model_path(model)
 Path to model directory in hfhub cache
 }
 \description{
-Download Whisper models from HuggingFace using hfhub. Get Model Cache
-Path
+Get Model Cache Path
 }

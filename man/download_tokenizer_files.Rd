@@ -4,12 +4,10 @@
 \alias{download_tokenizer_files}
 \title{Download Tokenizer Files from HuggingFace}
 \usage{
-download_tokenizer_files(model, vocab_dir)
+download_tokenizer_files(model)
 }
 \arguments{
 \item{model}{Model name}
-
-\item{vocab_dir}{Directory to save files (unused, kept for API compatibility)}
 }
 \description{
 Download Tokenizer Files from HuggingFace
