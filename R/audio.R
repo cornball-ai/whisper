@@ -225,7 +225,7 @@ audio_to_mel <- function(
   stft <- compute_stft(audio)
 
   # Compute magnitude (power spectrum)
-  magnitudes <- stft$abs() $pow(2L)
+  magnitudes <- stft$abs()$pow(2L)
 
   # Get mel filterbank (pre-computed from Whisper)
   mel_fb <- load_mel_filterbank(n_mels = n_mels)

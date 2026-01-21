@@ -229,9 +229,23 @@ ensure_tokenizer_files <- function(model) {
   cfg <- whisper_config(model)
   repo <- cfg$hf_repo
 
-  # Download if not present, get path from hfhub
-  vocab_file <- hfhub::hub_download(repo, "vocab.json")
-  hfhub::hub_download(repo, "merges.txt")
+  # Check if files exist locally (do NOT download without consent)
+  vocab_file <- tryCatch(
+    hfhub::hub_download(repo, "vocab.json", local_files_only = TRUE),
+    error = function(e) NULL
+  )
+  merges_file <- tryCatch(
+    hfhub::hub_download(repo, "merges.txt", local_files_only = TRUE),
+    error = function(e) NULL
+  )
+
+  if (is.null(vocab_file) || is.null(merges_file)) {
+    stop(
+      "Tokenizer files not found for model '", model, "'. ",
+      "Run download_whisper_model('", model, "') first.",
+      call. = FALSE
+    )
+  }
 
   # Return directory containing vocab files
   dirname(vocab_file)

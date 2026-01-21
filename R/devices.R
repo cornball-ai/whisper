@@ -63,10 +63,8 @@ parse_dtype <- function(
       torch::torch_float16()
     } else if (dtype == "float32") {
       torch::torch_float()
-    } else if (dtype == "bfloat16") {
-      torch::torch_bfloat16()
     } else {
-      stop("Unknown dtype: ", dtype)
+      stop("Unknown dtype: ", dtype, ". Supported: auto, float16, float32")
     }
   } else {
     dtype

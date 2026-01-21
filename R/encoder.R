@@ -75,7 +75,7 @@ whisper_attention <- torch::nn_module(
     # Scaled dot-product attention
     # (batch, n_head, seq_len, head_dim) @ (batch, n_head, head_dim, src_len)
     # -> (batch, n_head, seq_len, src_len)
-    scores <- torch::torch_matmul(q, k$transpose(3L, 4L)) $mul(self$scale)
+    scores <- torch::torch_matmul(q, k$transpose(3L, 4L))$mul(self$scale)
 
     # Apply mask if provided
     if (!is.null(mask)) {
@@ -92,7 +92,7 @@ whisper_attention <- torch::nn_module(
 
     # Reshape back
     # (batch, n_head, seq_len, head_dim) -> (batch, seq_len, n_state)
-    attn_output <- attn_output$transpose(2L, 3L) $contiguous()
+    attn_output <- attn_output$transpose(2L, 3L)$contiguous()
     attn_output <- attn_output$view(c(batch_size, seq_len, self$n_state))
 
     # Output projection
@@ -108,7 +108,7 @@ whisper_attention <- torch::nn_module(
   ) {
     # (batch, seq_len, n_state) -> (batch, n_head, seq_len, head_dim)
     seq_len <- x$size(2)
-    x$view(c(batch_size, seq_len, self$n_head, self$head_dim)) $transpose(2L, 3L)
+    x$view(c(batch_size, seq_len, self$n_head, self$head_dim))$transpose(2L, 3L)
   }
 )
 
@@ -196,9 +196,9 @@ whisper_encoder <- torch::nn_module(
     # Create sinusoidal positional embeddings
     pe <- torch::torch_zeros(max_len, dim)
 
-    position <- torch::torch_arange(0, max_len - 1, dtype = torch::torch_float()) $unsqueeze(2L)
+    position <- torch::torch_arange(0, max_len - 1, dtype = torch::torch_float())$unsqueeze(2L)
     div_term <- torch::torch_exp(
-      torch::torch_arange(0, dim - 1, 2, dtype = torch::torch_float()) $mul(- log(10000.0) / dim)
+      torch::torch_arange(0, dim - 1, 2, dtype = torch::torch_float())$mul(- log(10000.0) / dim)
     )
 
     # Sin for even indices, cos for odd
