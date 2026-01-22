@@ -33,10 +33,6 @@ library(whisper)
 # Transcribe audio
 result <- transcribe("audio.wav", model = "tiny")
 print(result$text)
-
-# With timestamps
-result <- transcribe("audio.wav", model = "small", timestamps = TRUE)
-print(result$segments)
 ```
 
 ## Development
@@ -72,37 +68,32 @@ Uses safetensors format from HuggingFace:
 
 ## Status
 
-**Work in Progress** - Core architecture is complete but transcription output needs validation.
+**Ready for CRAN** - Core functionality complete and tested.
 
-### Completed
+### Features
 
-- Package structure with tinyverse conventions
-- Encoder (conv stem + transformer) with sinusoidal positional encoding
-- Decoder (self-attention + cross-attention) with learned positional embedding
-- Weight loading from HuggingFace safetensors
-- KV cache for incremental decoding
-- Basic tokenizer with BPE
+- Transcription and translation (any language to English)
+- All model sizes: tiny, base, small, medium, large-v3
+- CPU and CUDA support
+- Pre-computed mel filterbank from official Whisper
+- HuggingFace model downloads via `hfhub`
+- KV cache for efficient incremental decoding
+- Long audio support (automatic chunking)
 
-### Known Issues
+### R torch notes
 
-1. **Transcription quality**: Model loads and runs but output doesn't match Python Whisper. Likely due to:
-   - Mel filterbank differences (computing on-the-fly vs. Whisper's pre-computed)
-   - STFT implementation details
-   - Numerical precision differences
+- Use `as.array()` for tensor to R conversion (R has native array support)
+- Embeddings use 1-based indexing (add 1 to 0-based token IDs)
+- `torch$argmax()` returns 1-indexed values
 
-2. **R torch quirks**:
-   - Use `as.array()` instead of `$numpy()` for tensor to R conversion
-   - Embeddings use 1-based indexing (add 1 to 0-based token IDs)
+### Known Limitations
 
-### Validation TODO
+- UTF-8 encoding issues with some non-ASCII characters in output
+- Translation quality varies by model size (larger models work better)
+- No beam search (greedy decoding only)
 
-1. Compare mel spectrogram output with Python Whisper on same audio
-2. Compare encoder output on same mel input
-3. Compare decoder output on same encoder states
-4. Identify numerical divergence point
+### Potential Improvements
 
-### Suggested Improvements
-
-- Use `hfhub` package for model downloads instead of manual download.file()
-- Load pre-computed mel filterbank from Whisper's mel_filters.npz
-- Add beam search decoding option
+- Beam search decoding
+- Word-level timestamps (requires cross-attention analysis)
+- Fix UTF-8 byte decoding in tokenizer

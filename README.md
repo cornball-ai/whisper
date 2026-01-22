@@ -57,12 +57,15 @@ print(result$text)
 # Specify model size
 result <- transcribe("audio.wav", model = "small")
 
-# Get word timestamps
-result <- transcribe("audio.wav", timestamps = TRUE)
-print(result$segments)
+# Force CPU (useful if CUDA has issues)
+result <- transcribe("audio.wav", device = "cpu")
 
-# Translate to English
-result <- transcribe("audio.wav", task = "translate")
+# Non-English audio (specify language for better accuracy)
+allende <- system.file("audio", "allende.mp3", package = "whisper")
+result <- transcribe(allende, language = "es")
+
+# Translate to English (quality is model-dependent; larger models work better)
+result <- transcribe(allende, task = "translate", language = "es", model = "small")
 ```
 
 ## Models
@@ -75,7 +78,7 @@ result <- transcribe("audio.wav", task = "translate")
 | medium | 769M | 3.0 GB | ~4% |
 | large-v3 | 1550M | 6.2 GB | ~3% |
 
-Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/`.
+Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
 ## License
 

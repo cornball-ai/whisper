@@ -272,14 +272,14 @@ download_tokenizer_files <- function(model) {
 #'
 #' @param language Two-letter language code or NULL for auto
 #' @param task "transcribe" or "translate"
-#' @param timestamps Whether to include timestamps
 #' @param model Model name for correct special token IDs
+#' @param timestamps Whether to include timestamps (internal use)
 #' @return Integer vector of initial token IDs
 get_initial_tokens <- function(
   language = "en",
   task = "transcribe",
-  timestamps = TRUE,
-  model = "tiny"
+  model = "tiny",
+  timestamps = FALSE
 ) {
   special <- whisper_special_tokens(model)
 

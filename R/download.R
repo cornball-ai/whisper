@@ -75,7 +75,10 @@ download_whisper_model <- function(
   }
 
   # Ask for consent (required for CRAN compliance)
-  if (interactive()) {
+  # Skip prompt if whisper.consent option is set (e.g., from Shiny modal)
+  if (isTRUE(getOption("whisper.consent"))) {
+    # Consent already given programmatically
+  } else if (interactive()) {
     ans <- utils::askYesNo(
       paste0("Download '", model, "' model (", size_str, ") from HuggingFace?"),
       default = TRUE
@@ -83,7 +86,7 @@ download_whisper_model <- function(
     if (!isTRUE(ans)) {
       stop("Download cancelled.", call. = FALSE)
     }
-  } else if (!isTRUE(getOption("whisper.consent"))) {
+  } else {
     stop(
       "Cannot download model in non-interactive mode without consent. ",
       "Run download_whisper_model('", model, "') interactively first, ",

@@ -10,18 +10,16 @@
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
 #' @param language Language code (e.g., "en", "es"). NULL for auto-detection.
 #' @param task "transcribe" or "translate" (translate to English)
-#' @param timestamps Include word/segment timestamps
 #' @param device Device: "auto", "cpu", "cuda"
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param verbose Print progress messages
-#' @return List with text, segments, language, and metadata
+#' @return List with text, language, and metadata
 #' @export
 transcribe <- function(
   file,
   model = "tiny",
   language = "en",
   task = "transcribe",
-  timestamps = FALSE,
   device = "auto",
   dtype = "auto",
   verbose = TRUE
@@ -53,14 +51,12 @@ transcribe <- function(
     # Single chunk processing
     result <- transcribe_chunk(file, whisper, tokenizer, config,
       language = language, task = task,
-      timestamps = timestamps, device = device,
-      dtype = dtype, verbose = verbose)
+      device = device, dtype = dtype, verbose = verbose)
   } else {
     # Long audio - process in chunks
     result <- transcribe_long(file, whisper, tokenizer, config,
       language = language, task = task,
-      timestamps = timestamps, device = device,
-      dtype = dtype, verbose = verbose)
+      device = device, dtype = dtype, verbose = verbose)
   }
 
   # Add metadata
@@ -79,7 +75,6 @@ transcribe <- function(
 #' @param config Model config
 #' @param language Language code
 #' @param task Task type
-#' @param timestamps Include timestamps
 #' @param device Device
 #' @param dtype Dtype
 #' @param verbose Verbose output
@@ -91,7 +86,6 @@ transcribe_chunk <- function(
   config,
   language = "en",
   task = "transcribe",
-  timestamps = FALSE,
   device,
   dtype,
   verbose = TRUE
@@ -101,7 +95,7 @@ transcribe_chunk <- function(
   mel <- audio_to_mel(file, n_mels = config$n_mels, device = device, dtype = dtype)
 
   # Get initial decoder tokens (use model name for correct special token IDs)
-  initial_tokens <- get_initial_tokens(language, task, timestamps, model = config$model_name)
+  initial_tokens <- get_initial_tokens(language, task, model = config$model_name)
   tokens <- torch::torch_tensor(matrix(initial_tokens, nrow = 1),
     dtype = torch::torch_long(),
     device = device)
@@ -125,21 +119,10 @@ transcribe_chunk <- function(
   text <- clean_text(text)
 
   # Build result
-  result <- list(
+  list(
     text = text,
-    language = language,
-    segments = NULL
+    language = language
   )
-
-  # Add timestamps if requested
-  if (timestamps) {
-    result$segments <- extract_segments(generated, tokenizer)
-  }
-
-  # Add raw tokens
-  result$raw <- list(tokens = generated)
-
-  result
 }
 
 #' Greedy Decoding
@@ -168,6 +151,9 @@ greedy_decode <- function(
 
   torch::with_no_grad({
       for (i in seq_len(max_length)) {
+        # Stop if we've reached max context length
+        if (length(generated) >= max_length) break
+
         # Get next token logits
         result <- model$decode(tokens, encoder_output, kv_cache = kv_cache)
         logits <- result$logits
@@ -209,7 +195,6 @@ greedy_decode <- function(
 #' @param config Model config
 #' @param language Language
 #' @param task Task
-#' @param timestamps Timestamps
 #' @param device Device
 #' @param dtype Dtype
 #' @param verbose Verbose
@@ -221,7 +206,6 @@ transcribe_long <- function(
   config,
   language,
   task,
-  timestamps,
   device,
   dtype,
   verbose
@@ -232,7 +216,6 @@ transcribe_long <- function(
   if (verbose) message("Processing ", length(chunks), " chunks...")
 
   all_text <- character(length(chunks))
-  all_segments <- list()
 
   for (i in seq_along(chunks)) {
     if (verbose) message("  Chunk ", i, "/", length(chunks))
@@ -242,7 +225,7 @@ transcribe_long <- function(
       device = device, dtype = dtype)
 
     # Get initial tokens (use model name for correct special token IDs)
-    initial_tokens <- get_initial_tokens(language, task, timestamps, model = config$model_name)
+    initial_tokens <- get_initial_tokens(language, task, model = config$model_name)
     tokens <- torch::torch_tensor(matrix(initial_tokens, nrow = 1),
       dtype = torch::torch_long(),
       device = device)
@@ -261,23 +244,13 @@ transcribe_long <- function(
     text <- tokenizer$decode(generated)
     text <- clean_text(text)
     all_text[i] <- text
-
-    # Extract segments with time offset
-    if (timestamps) {
-      offset <- (i - 1) * 29# 30s chunks with 1s overlap
-      segs <- extract_segments(generated, tokenizer, time_offset = offset)
-      all_segments <- c(all_segments, list(segs))
-    }
   }
 
   # Combine results
-  result <- list(
+  list(
     text = paste(all_text, collapse = " "),
-    language = language,
-    segments = if (timestamps) do.call(rbind, all_segments) else NULL
+    language = language
   )
-
-  result
 }
 
 #' Clean Transcribed Text
