@@ -15,6 +15,6 @@ download_whisper_model(model = "tiny", force = FALSE)
 Path to model directory (invisibly)
 }
 \description{
-Download Whisper model weights and tokenizer files from HuggingFace. In
-interactive sessions, asks for user consent before downloading.
+Download Whisper model weights and tokenizer files from HuggingFace.
+In interactive sessions, asks for user consent before downloading.
 }

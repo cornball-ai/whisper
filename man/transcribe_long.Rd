@@ -11,7 +11,6 @@ transcribe_long(
   config,
   language,
   task,
-  timestamps,
   device,
   dtype,
   verbose
@@ -29,8 +28,6 @@ transcribe_long(
 \item{language}{Language}
 
 \item{task}{Task}
-
-\item{timestamps}{Timestamps}
 
 \item{device}{Device}
 

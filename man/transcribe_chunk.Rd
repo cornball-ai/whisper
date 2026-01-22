@@ -11,7 +11,6 @@ transcribe_chunk(
   config,
   language = "en",
   task = "transcribe",
-  timestamps = FALSE,
   device,
   dtype,
   verbose = TRUE
@@ -29,8 +28,6 @@ transcribe_chunk(
 \item{language}{Language code}
 
 \item{task}{Task type}
-
-\item{timestamps}{Include timestamps}
 
 \item{device}{Device}
 

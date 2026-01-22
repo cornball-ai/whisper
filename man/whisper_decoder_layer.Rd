@@ -12,7 +12,7 @@ whisper_decoder_layer(n_state, n_head)
 \item{n_head}{Number of attention heads}
 }
 \description{
-Transformer decoder with cross-attention to encoder outputs. Decoder
-Layer Pre-norm transformer decoder layer with self-attention and
-cross-attention.
+Transformer decoder with cross-attention to encoder outputs.
+Decoder Layer
+Pre-norm transformer decoder layer with self-attention and cross-attention.
 }

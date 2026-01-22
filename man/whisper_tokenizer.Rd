@@ -13,7 +13,7 @@ whisper_tokenizer(model = "tiny")
 Tokenizer object (list with encode/decode functions)
 }
 \description{
-Byte-pair encoding tokenizer for Whisper models. Create Whisper
-Tokenizer Load or create a Whisper tokenizer from HuggingFace vocab
-files.
+Byte-pair encoding tokenizer for Whisper models.
+Create Whisper Tokenizer
+Load or create a Whisper tokenizer from HuggingFace vocab files.
 }

@@ -7,8 +7,8 @@
 get_initial_tokens(
   language = "en",
   task = "transcribe",
-  timestamps = TRUE,
-  model = "tiny"
+  model = "tiny",
+  timestamps = FALSE
 )
 }
 \arguments{
@@ -16,9 +16,9 @@ get_initial_tokens(
 
 \item{task}{"transcribe" or "translate"}
 
-\item{timestamps}{Whether to include timestamps}
-
 \item{model}{Model name for correct special token IDs}
+
+\item{timestamps}{Whether to include timestamps (internal use)}
 }
 \value{
 Integer vector of initial token IDs

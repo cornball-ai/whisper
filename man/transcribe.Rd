@@ -9,7 +9,6 @@ transcribe(
   model = "tiny",
   language = "en",
   task = "transcribe",
-  timestamps = FALSE,
   device = "auto",
   dtype = "auto",
   verbose = TRUE
@@ -24,8 +23,6 @@ transcribe(
 
 \item{task}{"transcribe" or "translate" (translate to English)}
 
-\item{timestamps}{Include word/segment timestamps}
-
 \item{device}{Device: "auto", "cpu", "cuda"}
 
 \item{dtype}{Data type: "auto", "float16", "float32"}
@@ -33,9 +30,10 @@ transcribe(
 \item{verbose}{Print progress messages}
 }
 \value{
-List with text, segments, language, and metadata
+List with text, language, and metadata
 }
 \description{
-Main transcription API for Whisper. Transcribe Audio Transcribe speech
-from an audio file using Whisper.
+Main transcription API for Whisper.
+Transcribe Audio
+Transcribe speech from an audio file using Whisper.
 }

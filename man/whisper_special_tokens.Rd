@@ -13,6 +13,6 @@ whisper_special_tokens(model = "tiny")
 Named list of special token IDs
 }
 \description{
-Get special token IDs for a Whisper model. Token IDs differ between
-model variants (e.g., large-v3 has extra language tokens).
+Get special token IDs for a Whisper model.
+Token IDs differ between model variants (e.g., large-v3 has extra language tokens).
 }

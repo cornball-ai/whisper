@@ -12,6 +12,6 @@ whisper_attention(n_state, n_head)
 \item{n_head}{Number of attention heads}
 }
 \description{
-Transformer encoder for processing mel spectrograms. Multi-Head
-Self-Attention
+Transformer encoder for processing mel spectrograms.
+Multi-Head Self-Attention
 }

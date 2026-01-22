@@ -18,6 +18,5 @@ whisper_encoder(n_mels, n_ctx, n_state, n_head, n_layer)
 \item{n_layer}{Number of transformer layers}
 }
 \description{
-Full Whisper encoder: Conv stem + positional encoding + transformer
-layers.
+Full Whisper encoder: Conv stem + positional encoding + transformer layers.
 }

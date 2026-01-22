@@ -18,6 +18,5 @@ whisper_decoder(n_vocab, n_ctx, n_state, n_head, n_layer)
 \item{n_layer}{Number of transformer layers}
 }
 \description{
-Full Whisper decoder: token embedding + positional embedding +
-transformer layers.
+Full Whisper decoder: token embedding + positional embedding + transformer layers.
 }

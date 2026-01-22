@@ -10,5 +10,6 @@ whisper_model(config)
 \item{config}{Model configuration}
 }
 \description{
-Full Whisper model combining encoder and decoder. Whisper Model Module
+Full Whisper model combining encoder and decoder.
+Whisper Model Module
 }

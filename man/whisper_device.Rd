@@ -10,5 +10,6 @@ whisper_device()
 torch device object
 }
 \description{
-Utilities for managing torch devices and data types. Get Default Device
+Utilities for managing torch devices and data types.
+Get Default Device
 }
