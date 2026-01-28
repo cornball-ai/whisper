@@ -39,14 +39,16 @@ Transcribe speech from an audio file using Whisper.
 \examples{
 \donttest{
 # Transcribe included sample (JFK "ask not" speech)
-audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
-result <- transcribe(audio_file, model = "tiny")
-result$text
+if (model_exists("tiny")) {
+  audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+  result <- transcribe(audio_file, model = "tiny")
+  result$text
 
-# Translate Spanish audio to English
-spanish_file <- system.file("audio", "allende.mp3", package = "whisper")
-result <- transcribe(spanish_file, model = "tiny",
-                     language = "es", task = "translate")
-result$text
+  # Translate Spanish audio to English
+  spanish_file <- system.file("audio", "allende.mp3", package = "whisper")
+  result <- transcribe(spanish_file, model = "tiny",
+                       language = "es", task = "translate")
+  result$text
+}
 }
 }

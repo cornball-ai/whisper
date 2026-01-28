@@ -2,6 +2,9 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 
+# Claude Code
+^\.claude$
+
 # Development documentation
 ^CLAUDE\.md$
 ^fyi\.md$

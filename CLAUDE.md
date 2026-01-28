@@ -39,10 +39,10 @@ print(result$text)
 
 ```bash
 # Build and test
-r -e 'rhydrogen::document(); rhydrogen::install(); tinytest::test_package("whisper")'
+r -e 'tinyrox::document(); tinypkgr::install(); tinytest::test_package("whisper")'
 
 # Quick iteration
-r -e 'rhydrogen::load_all(); transcribe("test.wav")'
+r -e 'tinypkgr::load_all(); transcribe("test.wav")'
 ```
 
 ## Weight Loading
