@@ -15,6 +15,19 @@
 #' @param verbose Print progress messages
 #' @return List with text, language, and metadata
 #' @export
+#' @examples
+#' \donttest{
+#' # Transcribe included sample (JFK "ask not" speech)
+#' audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+#' result <- transcribe(audio_file, model = "tiny")
+#' result$text
+#'
+#' # Translate Spanish audio to English
+#' spanish_file <- system.file("audio", "allende.mp3", package = "whisper")
+#' result <- transcribe(spanish_file, model = "tiny",
+#'                      language = "es", task = "translate")
+#' result$text
+#' }
 transcribe <- function(
   file,
   model = "tiny",

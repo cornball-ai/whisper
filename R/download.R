@@ -29,6 +29,9 @@ get_model_path <- function(model) {
 #' @param model Model name
 #' @return TRUE if model weights exist locally
 #' @export
+#' @examples
+#' model_exists("tiny")
+#' model_exists("large-v3")
 model_exists <- function(model) {
   config <- whisper_config(model)
   repo <- config$hf_repo
@@ -51,6 +54,14 @@ model_exists <- function(model) {
 #' @param force Re-download even if exists
 #' @return Path to model directory (invisibly)
 #' @export
+#' @examples
+#' \dontrun{
+#' # Download tiny model (smallest, ~150MB)
+#' download_whisper_model("tiny")
+#'
+#' # Download larger model for better accuracy
+#' download_whisper_model("small")
+#' }
 download_whisper_model <- function(
   model = "tiny",
   force = FALSE
@@ -145,6 +156,8 @@ get_weights_path <- function(model) {
 #'
 #' @return Character vector of model names
 #' @export
+#' @examples
+#' list_whisper_models()
 list_whisper_models <- function() {
   c("tiny", "base", "small", "medium", "large-v3")
 }
@@ -153,6 +166,8 @@ list_whisper_models <- function() {
 #'
 #' @return Character vector of downloaded model names
 #' @export
+#' @examples
+#' list_downloaded_models()
 list_downloaded_models <- function() {
   models <- list_whisper_models()
   downloaded <- sapply(models, model_exists)

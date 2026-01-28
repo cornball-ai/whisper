@@ -72,6 +72,13 @@ whisper_model <- torch::nn_module(
 #' @param verbose Print loading messages
 #' @return WhisperModel module
 #' @export
+#' @examples
+#' \donttest{
+#' # Load tiny model (requires prior download)
+#' if (model_exists("tiny")) {
+#'   model <- load_whisper_model("tiny")
+#' }
+#' }
 load_whisper_model <- function(
   model = "tiny",
   device = "auto",

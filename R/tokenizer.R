@@ -9,6 +9,15 @@
 #' @param model Model name for vocab lookup
 #' @return Tokenizer object (list with encode/decode functions)
 #' @export
+#' @examples
+#' \donttest{
+#' # Load tokenizer (requires prior model download)
+#' if (model_exists("tiny")) {
+#'   tok <- whisper_tokenizer("tiny")
+#'   tok$encode("Hello world")
+#'   tok$decode(c(50258, 50259, 50359, 50363))
+#' }
+#' }
 whisper_tokenizer <- function(model = "tiny") {
   # Ensure vocab files are downloaded
   vocab_dir <- ensure_tokenizer_files(model)

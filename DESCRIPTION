@@ -1,16 +1,16 @@
 Package: whisper
-Title: Native R Torch Implementation of OpenAI Whisper
+Title: Native R 'torch' Implementation of 'OpenAI' 'Whisper'
 Version: 0.1.0
 Authors@R: person("Troy", "Hernandez", role = c("aut", "cre"),
                   email = "troy@cornball.ai")
-Description: Speech-to-text transcription using a native R torch implementation
-    of OpenAI's Whisper model. Supports multiple model sizes from tiny (39M
-    parameters) to large-v3 (1.5B parameters) with automatic download from
-    HuggingFace. Provides automatic speech recognition with optional language
-    detection, timestamp generation, and translation to English. Audio
-    preprocessing, mel spectrogram computation, and transformer-based
-    encoder-decoder inference are all implemented in pure R using the torch
-    package.
+Description: Speech-to-text transcription using a native R 'torch' implementation
+    of 'OpenAI' 'Whisper' model <https://github.com/openai/whisper>. Supports
+    multiple model sizes from tiny (39M parameters) to large-v3 (1.5B parameters)
+    with automatic download from 'HuggingFace' <https://huggingface.co/>. Provides
+    automatic speech recognition with optional language detection, timestamp
+    generation, and translation to English. Audio preprocessing, mel spectrogram
+    computation, and transformer-based encoder-decoder inference are all
+    implemented in pure R using the 'torch' package.
 License: MIT + file LICENSE
 Encoding: UTF-8
 URL: https://github.com/cornball-ai/whisper

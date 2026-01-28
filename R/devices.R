@@ -4,8 +4,13 @@
 
 #' Get Default Device
 #'
+#' Returns CUDA device if available, otherwise CPU.
+#'
 #' @return torch device object
 #' @export
+#' @examples
+#' device <- whisper_device()
+#' device$type
 whisper_device <- function() {
 
   if (torch::cuda_is_available()) {
@@ -17,9 +22,14 @@ whisper_device <- function() {
 
 #' Get Default Dtype
 #'
+#' Returns float16 on CUDA, float32 on CPU.
+#'
 #' @param device torch device
 #' @return torch dtype
 #' @export
+#' @examples
+#' dtype <- whisper_dtype()
+#' dtype
 whisper_dtype <- function(device = whisper_device()) {
   # Use float16 on CUDA, float32 on CPU
 

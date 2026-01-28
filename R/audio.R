@@ -17,6 +17,12 @@ WHISPER_N_SAMPLES <- WHISPER_CHUNK_LENGTH * WHISPER_SAMPLE_RATE# 480000
 #' @return Numeric vector of audio samples normalized to -1 to 1 range
 #' @importFrom utils capture.output
 #' @export
+#' @examples
+#' # Load included sample audio
+#' audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+#' samples <- load_audio(audio_file)
+#' length(samples)
+#' range(samples)
 load_audio <- function(file) {
 
   if (!file.exists(file)) {
@@ -202,6 +208,13 @@ compute_stft <- function(
 #' @param dtype torch dtype for output tensor
 #' @return torch tensor of shape (1, n_mels, 3000) for 30s audio
 #' @export
+#' @examples
+#' \donttest{
+#' # Convert audio file to mel spectrogram
+#' audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+#' mel <- audio_to_mel(audio_file)
+#' dim(mel)
+#' }
 audio_to_mel <- function(
   file,
   n_mels = 80L,
