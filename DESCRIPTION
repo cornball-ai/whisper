@@ -6,11 +6,11 @@ Authors@R: person("Troy", "Hernandez", role = c("aut", "cre"),
 Description: Speech-to-text transcription using a native R 'torch' implementation
     of 'OpenAI' 'Whisper' model <https://github.com/openai/whisper>. Supports
     multiple model sizes from tiny (39M parameters) to large-v3 (1.5B parameters)
-    with automatic download from 'HuggingFace' <https://huggingface.co/>. Provides
-    automatic speech recognition with optional language detection, timestamp
-    generation, and translation to English. Audio preprocessing, mel spectrogram
+    with integrated download from 'HuggingFace' <https://huggingface.co/> via the
+    'hfhub' package. Provides automatic speech recognition with optional language
+    detection and translation to English. Audio preprocessing, mel spectrogram
     computation, and transformer-based encoder-decoder inference are all
-    implemented in pure R using the 'torch' package.
+    implemented in R using the 'torch' package.
 License: MIT + file LICENSE
 Encoding: UTF-8
 URL: https://github.com/cornball-ai/whisper
