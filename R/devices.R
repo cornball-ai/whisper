@@ -9,8 +9,12 @@
 #' @return torch device object
 #' @export
 #' @examples
-#' device <- whisper_device()
-#' device$type
+#' \donttest{
+#' if (torch::torch_is_installed()) {
+#'   device <- whisper_device()
+#'   device$type
+#' }
+#' }
 whisper_device <- function() {
 
   if (torch::cuda_is_available()) {
@@ -28,8 +32,12 @@ whisper_device <- function() {
 #' @return torch dtype
 #' @export
 #' @examples
-#' dtype <- whisper_dtype()
-#' dtype
+#' \donttest{
+#' if (torch::torch_is_installed()) {
+#'   dtype <- whisper_dtype()
+#'   dtype
+#' }
+#' }
 whisper_dtype <- function(device = whisper_device()) {
   # Use float16 on CUDA, float32 on CPU
 

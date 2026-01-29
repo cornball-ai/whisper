@@ -15,6 +15,10 @@ torch dtype
 Returns float16 on CUDA, float32 on CPU.
 }
 \examples{
-dtype <- whisper_dtype()
-dtype
+\donttest{
+if (torch::torch_is_installed()) {
+  dtype <- whisper_dtype()
+  dtype
+}
+}
 }

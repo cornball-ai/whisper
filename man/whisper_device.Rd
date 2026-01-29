@@ -14,6 +14,10 @@ Get Default Device
 Returns CUDA device if available, otherwise CPU.
 }
 \examples{
-device <- whisper_device()
-device$type
+\donttest{
+if (torch::torch_is_installed()) {
+  device <- whisper_device()
+  device$type
+}
+}
 }
