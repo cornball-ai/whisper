@@ -18,6 +18,16 @@ This package requires:
 - hfhub: HuggingFace model downloads
 - safetensors: Model weight loading
 
+## Resubmission changes
+
+- Added cornball.ai as copyright holder (`cph`) in `Authors@R` to match
+  the LICENSE file.
+- Added OpenAI as copyright holder (`cph`) in `Authors@R`. The bundled mel
+  filterbank data (`inst/assets/mel_80.csv`, `mel_128.csv`) is from OpenAI's
+  MIT-licensed Whisper repository, and the model architecture is derived from
+  their specifications.
+- Changed `\dontrun{}` to `\donttest{}` in `download_whisper_model()` examples.
+
 ## Notes
 
 This package provides a native R implementation of OpenAI's Whisper

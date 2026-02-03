@@ -1,8 +1,13 @@
 Package: whisper
 Title: Native R 'torch' Implementation of 'OpenAI' 'Whisper'
 Version: 0.1.0
-Authors@R: person("Troy", "Hernandez", role = c("aut", "cre"),
-                  email = "troy@cornball.ai")
+Authors@R: c(
+    person("Troy", "Hernandez", role = c("aut", "cre"),
+           email = "troy@cornball.ai"),
+    person("cornball.ai", role = "cph"),
+    person("OpenAI", role = "cph",
+           comment = "Whisper model architecture and mel filterbank data (MIT license)")
+  )
 Description: Speech-to-text transcription using a native R 'torch' implementation
     of 'OpenAI' 'Whisper' model <https://github.com/openai/whisper>. Supports
     multiple model sizes from tiny (39M parameters) to large-v3 (1.5B parameters)

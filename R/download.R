@@ -55,7 +55,7 @@ model_exists <- function(model) {
 #' @return Path to model directory (invisibly)
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Download tiny model (smallest, ~150MB)
 #' download_whisper_model("tiny")
 #'

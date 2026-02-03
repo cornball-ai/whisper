@@ -18,7 +18,7 @@ Download Whisper model weights and tokenizer files from HuggingFace.
 In interactive sessions, asks for user consent before downloading.
 }
 \examples{
-\dontrun{
+\donttest{
 # Download tiny model (smallest, ~150MB)
 download_whisper_model("tiny")
 
