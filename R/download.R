@@ -56,11 +56,13 @@ model_exists <- function(model) {
 #' @export
 #' @examples
 #' \donttest{
-#' # Download tiny model (smallest, ~150MB)
-#' download_whisper_model("tiny")
+#' if (interactive()) {
+#'   # Download tiny model (smallest, ~150MB)
+#'   download_whisper_model("tiny")
 #'
-#' # Download larger model for better accuracy
-#' download_whisper_model("small")
+#'   # Download larger model for better accuracy
+#'   download_whisper_model("small")
+#' }
 #' }
 download_whisper_model <- function(
   model = "tiny",
