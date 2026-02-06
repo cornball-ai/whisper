@@ -34,4 +34,3 @@ tests/testthat/_snaps/
 *.bin
 *.pt
 .Rproj.user
-CLAUDE.md

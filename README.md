@@ -5,10 +5,12 @@ Native R torch implementation of OpenAI Whisper for speech-to-text transcription
 ## Installation
 
 ```r
-# Install dependencies
-install.packages(c("torch", "hfhub", "safetensors", "av", "jsonlite"))
+install.packages("whisper")
+```
 
-# Install whisper from GitHub
+Or install the development version from GitHub:
+
+```r
 remotes::install_github("cornball-ai/whisper")
 ```
 
