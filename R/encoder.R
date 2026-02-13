@@ -71,7 +71,7 @@ whisper_attention <- torch::nn_module(
     }
 
     # Scaled dot-product attention (dispatches to FlashAttention on GPU)
-    attn_output <- torch::torch_scaled_dot_product_attention(
+    attn_output <- torch:::torch_scaled_dot_product_attention(
       q, k, v, is_causal = !is.null(mask))
 
     # Reshape back: (batch, n_head, seq_len, head_dim) -> (batch, seq_len, n_state)
