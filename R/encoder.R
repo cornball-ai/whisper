@@ -24,8 +24,6 @@ whisper_attention <- torch::nn_module(
 
     # Output projection
     self$out <- torch::nn_linear(n_state, n_state)
-
-    self$scale <- self$head_dim ^ (- 0.5)
   },
 
   forward = function(
@@ -72,26 +70,11 @@ whisper_attention <- torch::nn_module(
       }
     }
 
-    # Scaled dot-product attention
-    # (batch, n_head, seq_len, head_dim) @ (batch, n_head, head_dim, src_len)
-    # -> (batch, n_head, seq_len, src_len)
-    scores <- torch::torch_matmul(q, k$transpose(3L, 4L))$mul(self$scale)
+    # Scaled dot-product attention (dispatches to FlashAttention on GPU)
+    attn_output <- torch::torch_scaled_dot_product_attention(
+      q, k, v, is_causal = !is.null(mask))
 
-    # Apply mask if provided
-    if (!is.null(mask)) {
-      scores <- scores + mask
-    }
-
-    # Softmax
-    attn_weights <- torch::nnf_softmax(scores, dim = - 1L)
-
-    # Apply attention to values
-    # (batch, n_head, seq_len, src_len) @ (batch, n_head, src_len, head_dim)
-    # -> (batch, n_head, seq_len, head_dim)
-    attn_output <- torch::torch_matmul(attn_weights, v)
-
-    # Reshape back
-    # (batch, n_head, seq_len, head_dim) -> (batch, seq_len, n_state)
+    # Reshape back: (batch, n_head, seq_len, head_dim) -> (batch, seq_len, n_state)
     attn_output <- attn_output$transpose(2L, 3L)$contiguous()
     attn_output <- attn_output$view(c(batch_size, seq_len, self$n_state))
 
