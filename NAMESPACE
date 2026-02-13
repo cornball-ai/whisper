@@ -11,7 +11,10 @@ export(transcribe)
 export(whisper_config)
 export(whisper_device)
 export(whisper_dtype)
+export(whisper_pipeline)
 export(whisper_tokenizer)
+
+S3method(print,whisper_pipeline)
 
 importFrom(stats,setNames)
 importFrom(utils,capture.output)

@@ -2,9 +2,115 @@
 #'
 #' Main transcription API for Whisper.
 
+#' Create a Whisper Pipeline
+#'
+#' Load the model, tokenizer, and config once. Call \code{$transcribe()}
+#' repeatedly without reloading.
+#'
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param device Device: "auto", "cpu", "cuda"
+#' @param dtype Data type: "auto", "float16", "float32"
+#' @param download If TRUE and model not present, prompt to download.
+#' @param verbose Print loading messages.
+#' @return A \code{whisper_pipeline} object with a \code{$transcribe()} method.
+#' @export
+#' @examples
+#' \donttest{
+#' if (model_exists("tiny")) {
+#'   pipe <- whisper_pipeline("tiny")
+#'   pipe$transcribe(system.file("audio", "jfk.mp3", package = "whisper"))
+#' }
+#' }
+whisper_pipeline <- function(
+  model = "tiny",
+  device = "auto",
+  dtype = "auto",
+  download = TRUE,
+  verbose = TRUE
+) {
+  device <- parse_device(device)
+  dtype <- parse_dtype(dtype, device)
+
+  whisper <- load_whisper_model(model, device = device, dtype = dtype,
+    download = download, verbose = verbose)
+  tokenizer <- whisper_tokenizer(model)
+  config <- whisper_config(model)
+
+  # Pre-warm token cache (avoids 200ms hub_download on first transcribe)
+  whisper_special_tokens(model)
+
+  pipe <- list(
+    model = whisper,
+    tokenizer = tokenizer,
+    config = config,
+    device = device,
+    dtype = dtype
+  )
+
+  pipe$transcribe <- function(
+    file,
+    language = "en",
+    task = "transcribe",
+    verbose = TRUE
+  ) {
+    pipeline_transcribe(pipe, file, language = language, task = task,
+      verbose = verbose)
+  }
+
+  class(pipe) <- "whisper_pipeline"
+  pipe
+}
+
+#' @export
+print.whisper_pipeline <- function(x, ...) {
+  cat(sprintf("<whisper_pipeline: %s on %s>\n",
+    x$config$model_name, x$device))
+  invisible(x)
+}
+
+#' Pipeline Transcribe
+#'
+#' @param pipe A whisper_pipeline object.
+#' @param file Path to audio file.
+#' @param language Language code.
+#' @param task Task type.
+#' @param verbose Print progress.
+#' @return List with text, language, and metadata.
+#' @keywords internal
+pipeline_transcribe <- function(
+  pipe,
+  file,
+  language = "en",
+  task = "transcribe",
+  verbose = TRUE
+) {
+  if (!file.exists(file)) stop("Audio file not found: ", file)
+
+  duration <- audio_duration(file)
+  if (verbose) message("Audio duration: ", round(duration, 1), "s")
+
+  if (duration <= WHISPER_CHUNK_LENGTH) {
+    result <- transcribe_chunk(file, pipe$model, pipe$tokenizer, pipe$config,
+      language = language, task = task,
+      device = pipe$device, dtype = pipe$dtype, verbose = verbose)
+  } else {
+    result <- transcribe_long(file, pipe$model, pipe$tokenizer, pipe$config,
+      language = language, task = task,
+      device = pipe$device, dtype = pipe$dtype, verbose = verbose)
+  }
+
+  result$model <- pipe$config$model_name
+  result$backend <- "whisper"
+  result$duration <- duration
+  result
+}
+
 #' Transcribe Audio
 #'
 #' Transcribe speech from an audio file using Whisper.
+#'
+#' For repeated transcription, use \code{\link{whisper_pipeline}()} to
+#' load the model once.
 #'
 #' @param file Path to audio file (WAV, MP3, etc.)
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
@@ -39,47 +145,9 @@ transcribe <- function(
   dtype = "auto",
   verbose = TRUE
 ) {
-  if (!file.exists(file)) {
-    stop("Audio file not found: ", file)
-  }
-
-  device <- parse_device(device)
-  dtype <- parse_dtype(dtype, device)
-
-  # Load model (prompt to download if needed)
-  if (verbose) message("Loading model: ", model)
-  whisper <- load_whisper_model(model, device = device, dtype = dtype,
+  pipe <- whisper_pipeline(model, device = device, dtype = dtype,
     download = TRUE, verbose = verbose)
-
-  # Load tokenizer
-  tokenizer <- whisper_tokenizer(model)
-
-  # Get model config
-  config <- whisper_config(model)
-
-  # Check audio duration
-  duration <- audio_duration(file)
-  if (verbose) message("Audio duration: ", round(duration, 1), "s")
-
-  # Process audio
-  if (duration <= WHISPER_CHUNK_LENGTH) {
-    # Single chunk processing
-    result <- transcribe_chunk(file, whisper, tokenizer, config,
-      language = language, task = task,
-      device = device, dtype = dtype, verbose = verbose)
-  } else {
-    # Long audio - process in chunks
-    result <- transcribe_long(file, whisper, tokenizer, config,
-      language = language, task = task,
-      device = device, dtype = dtype, verbose = verbose)
-  }
-
-  # Add metadata
-  result$model <- model
-  result$backend <- "whisper"
-  result$duration <- duration
-
-  result
+  pipe$transcribe(file, language = language, task = task, verbose = verbose)
 }
 
 #' Transcribe Single Chunk

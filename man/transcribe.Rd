@@ -1,7 +1,7 @@
 % tinyrox says don't edit this manually, but it can't stop you!
 \name{transcribe}
 \alias{transcribe}
-\title{Whisper Transcription}
+\title{Transcribe Audio}
 \usage{
 transcribe(
   file,
@@ -32,9 +32,9 @@ transcribe(
 List with text, language, and metadata
 }
 \description{
-Main transcription API for Whisper.
-Transcribe Audio
 Transcribe speech from an audio file using Whisper.
+For repeated transcription, use \code{\link{whisper_pipeline}()} to
+load the model once.
 }
 \examples{
 \donttest{

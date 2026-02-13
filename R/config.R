@@ -1,3 +1,6 @@
+# Package-level cache for expensive lookups (special tokens, added_tokens.json)
+.whisper_cache <- new.env(parent = emptyenv())
+
 #' Whisper Model Configurations
 #'
 #' Get configuration for a Whisper model variant.
@@ -101,6 +104,10 @@ whisper_config <- function(model = "tiny") {
 #' @param model Model name (default: "tiny")
 #' @return Named list of special token IDs
 whisper_special_tokens <- function(model = "tiny") {
+  cache_key <- paste0(".special_tokens_", model)
+  cached <- .whisper_cache[[cache_key]]
+  if (!is.null(cached)) return(cached)
+
   # Load from model's added_tokens.json for accuracy
   cfg <- whisper_config(model)
   added_tokens <- load_added_tokens(cfg$hf_repo)
@@ -119,7 +126,7 @@ whisper_special_tokens <- function(model = "tiny") {
 
   # Extract special tokens, using fallbacks for tokens not in added_tokens.json
   # (Some models have tokens in vocab.json instead of added_tokens.json)
-  list(
+  result <- list(
     sot = get_token("<|startoftranscript|>", 50258L),
     eot = get_token("<|endoftext|>", 50257L),
     translate = get_token("<|translate|>", 50358L),
@@ -129,6 +136,8 @@ whisper_special_tokens <- function(model = "tiny") {
     timestamp_begin = get_token("<|0.00|>", 50364L),
     lang_en = get_token("<|en|>", 50259L)
   )
+  .whisper_cache[[cache_key]] <- result
+  result
 }
 
 #' Load Added Tokens from HuggingFace
@@ -136,12 +145,18 @@ whisper_special_tokens <- function(model = "tiny") {
 #' @param repo HuggingFace repo ID
 #' @return Named list of token -> ID mappings, or NULL if not found
 load_added_tokens <- function(repo) {
-  tryCatch({
+  cache_key <- paste0(".added_tokens_", repo)
+  cached <- .whisper_cache[[cache_key]]
+  if (!is.null(cached)) return(cached)
+
+  result <- tryCatch({
       path <- hfhub::hub_download(repo, "added_tokens.json")
       jsonlite::fromJSON(path)
     }, error = function(e) {
       NULL
     })
+  if (!is.null(result)) .whisper_cache[[cache_key]] <- result
+  result
 }
 
 #' Get Language Token ID
