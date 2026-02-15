@@ -10,6 +10,9 @@ transcribe_chunk(
   config,
   language = "en",
   task = "transcribe",
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  time_offset = 0,
   device,
   dtype,
   verbose = TRUE

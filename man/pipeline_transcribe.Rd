@@ -8,6 +8,8 @@ pipeline_transcribe(
   file,
   language = "en",
   task = "transcribe",
+  timestamps = FALSE,
+  word_timestamps = FALSE,
   verbose = TRUE
 )
 }
@@ -19,6 +21,10 @@ pipeline_transcribe(
 \item{language}{Language code.}
 
 \item{task}{Task type.}
+
+\item{timestamps}{Return segment-level timestamps.}
+
+\item{word_timestamps}{Return word-level timestamps.}
 
 \item{verbose}{Print progress.}
 }

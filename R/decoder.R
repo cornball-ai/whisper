@@ -36,7 +36,8 @@ whisper_decoder_layer <- torch::nn_module(
     x,
     xa,
     mask = NULL,
-    kv_cache = NULL
+    kv_cache = NULL,
+    need_weights = FALSE
   ) {
     # x: decoder input (batch, seq_len, n_state)
     # xa: encoder output (batch, src_len, n_state)
@@ -51,23 +52,25 @@ whisper_decoder_layer <- torch::nn_module(
       cross_kv_cache <- kv_cache$cross
     }
 
-    # Self-attention with causal mask
+    # Self-attention with causal mask (never need weights for self-attn)
     attn_result <- self$attn(self$attn_ln(x), mask = mask, kv_cache = self_kv_cache)
     x <- x + attn_result$output
     new_self_kv <- attn_result$kv_cache
 
-    # Cross-attention to encoder output
-    cross_result <- self$cross_attn(self$cross_attn_ln(x), xa = xa, kv_cache = cross_kv_cache)
+    # Cross-attention to encoder output (need_weights for DTW alignment)
+    cross_result <- self$cross_attn(self$cross_attn_ln(x), xa = xa,
+      kv_cache = cross_kv_cache, need_weights = need_weights)
     x <- x + cross_result$output
     new_cross_kv <- cross_result$kv_cache
 
     # FFN
     x <- x + self$mlp(self$mlp_ln(x))
 
-    # Return output and updated caches
+    # Return output, updated caches, and optionally cross-attention weights
     list(
       output = x,
-      kv_cache = list(self = new_self_kv, cross = new_cross_kv)
+      kv_cache = list(self = new_self_kv, cross = new_cross_kv),
+      cross_attn_weights = cross_result$attn_weights
     )
   }
 )
@@ -126,7 +129,8 @@ whisper_decoder <- torch::nn_module(
   forward = function(
     x,
     xa,
-    kv_cache = NULL
+    kv_cache = NULL,
+    need_weights = FALSE
   ) {
     # x: token ids (batch, seq_len)
     # xa: encoder output (batch, src_len, n_state)
@@ -168,6 +172,7 @@ whisper_decoder <- torch::nn_module(
     }
 
     new_kv_cache <- vector("list", self$n_layer)
+    cross_attn_weights <- if (need_weights) vector("list", self$n_layer) else NULL
 
     # Transformer layers
     for (i in seq_len(self$n_layer)) {
@@ -176,16 +181,21 @@ whisper_decoder <- torch::nn_module(
       } else {
         layer_cache <- NULL
       }
-      result <- self$blocks[[i]](x, xa, mask = mask, kv_cache = layer_cache)
+      result <- self$blocks[[i]](x, xa, mask = mask, kv_cache = layer_cache,
+        need_weights = need_weights)
       x <- result$output
       new_kv_cache[[i]] <- result$kv_cache
+      if (need_weights) {
+        cross_attn_weights[[i]] <- result$cross_attn_weights
+      }
     }
 
     # Final layer norm
     x <- self$ln(x)
 
-    # Return hidden states and updated KV cache
-    list(hidden_states = x, kv_cache = new_kv_cache)
+    # Return hidden states, updated KV cache, and optionally cross-attention weights
+    list(hidden_states = x, kv_cache = new_kv_cache,
+      cross_attn_weights = cross_attn_weights)
   },
 
   get_logits = function(hidden_states) {

@@ -48,16 +48,24 @@ whisper_model <- torch::nn_module(
   decode = function(
     tokens,
     encoder_output,
-    kv_cache = NULL
+    kv_cache = NULL,
+    need_weights = FALSE
   ) {
     # Just decode (with pre-computed encoder output)
-    decoder_result <- self$decoder(tokens, encoder_output, kv_cache = kv_cache)
+    decoder_result <- self$decoder(tokens, encoder_output, kv_cache = kv_cache,
+      need_weights = need_weights)
     logits <- self$decoder$get_logits(decoder_result$hidden_states)
 
-    list(
+    result <- list(
       logits = logits,
       kv_cache = decoder_result$kv_cache
     )
+
+    if (need_weights) {
+      result$cross_attn_weights <- decoder_result$cross_attn_weights
+    }
+
+    result
   }
 )
 
