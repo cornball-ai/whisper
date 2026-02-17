@@ -70,6 +70,33 @@ result <- transcribe(allende, language = "es")
 result <- transcribe(allende, task = "translate", language = "es", model = "small")
 ```
 
+## Timestamps
+
+```r
+# Segment-level timestamps
+result <- transcribe("audio.wav", timestamps = TRUE)
+result$segments
+#>   start  end                         text
+#> 1  0.00 7.44 Ask not what your country...
+
+# Word-level timestamps (via cross-attention DTW alignment)
+result <- transcribe("audio.wav", word_timestamps = TRUE)
+result$words
+#>      word start  end
+#> 1     Ask  0.00 0.54
+#> 2     not  0.54 1.16
+#> 3    what  1.16 2.46
+#> ...
+```
+
+Both work with the pipeline API for repeated transcription:
+
+```r
+pipe <- whisper_pipeline("tiny")
+result <- pipe$transcribe("audio.wav", word_timestamps = TRUE)
+result$words
+```
+
 ## Models
 
 | Model | Parameters | Size | English WER |
