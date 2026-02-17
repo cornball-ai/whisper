@@ -99,13 +99,16 @@ result$words
 
 ## Models
 
-| Model | Parameters | Size | English WER |
-|-------|------------|------|-------------|
-| tiny | 39M | 151 MB | ~9% |
-| base | 74M | 290 MB | ~7% |
-| small | 244M | 967 MB | ~5% |
-| medium | 769M | 3.0 GB | ~4% |
-| large-v3 | 1550M | 6.2 GB | ~3% |
+| Model | Parameters | Disk (fp32) | English WER | Peak VRAM (CUDA fp16) | Speed* |
+|-------|------------|-------------|-------------|----------------------|--------|
+| tiny | 39M | 151 MB | ~9% | 564 MiB | 5.5s |
+| base | 74M | 290 MB | ~7% | 734 MiB | 1.9s |
+| small | 244M | 967 MB | ~5% | 1,454 MiB | 3.6s |
+| medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 8.6s |
+| large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 16.7s |
+
+*Speed measured on RTX 5060 Ti transcribing a 17s audio clip with `word_timestamps = TRUE`.
+Peak VRAM includes ~364 MiB torch CUDA context overhead.
 
 Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
