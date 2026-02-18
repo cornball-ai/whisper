@@ -9,8 +9,9 @@ decode_bpe_bytes(text)
 \item{text}{Text with BPE byte tokens}
 }
 \value{
-Decoded text
+Decoded UTF-8 text
 }
 \description{
-Decode BPE Bytes Back to Text
+Reverses the GPT-2 byte-level encoding, converting unicode tokens
+back to raw UTF-8 bytes.
 }

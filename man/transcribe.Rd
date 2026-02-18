@@ -10,6 +10,13 @@ transcribe(
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = 0,
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
   device = "auto",
   dtype = "auto",
   verbose = TRUE
@@ -27,6 +34,21 @@ transcribe(
 \item{timestamps}{If TRUE, return segment-level timestamps}
 
 \item{word_timestamps}{If TRUE, return word-level timestamps (implies timestamps)}
+
+\item{beam_size}{Number of beams for beam search (1 = greedy, default)}
+
+\item{temperatures}{Numeric vector of temperatures to try. 0 uses beam search
+or greedy; values > 0 use sampling. Multiple values enable fallback.}
+
+\item{best_of}{Number of samples per temperature > 0, keeping the best.}
+
+\item{compression_ratio_threshold}{Max compression ratio before fallback.}
+
+\item{logprob_threshold}{Min average log probability before fallback.}
+
+\item{length_penalty}{Length penalty exponent for beam search scoring.}
+
+\item{patience}{Patience factor for beam search (stop after patience*beam_size).}
 
 \item{device}{Device: "auto", "cpu", "cuda"}
 

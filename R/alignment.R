@@ -288,6 +288,7 @@ dtw_align <- function(cost) {
 #' @param x Numeric vector
 #' @param width Filter width (must be odd)
 #' @return Filtered numeric vector of same length
+#' @importFrom stats median
 medfilt1 <- function(x, width = 7L) {
   n <- length(x)
   if (n == 0) return(x)

@@ -16,6 +16,7 @@ export(whisper_tokenizer)
 
 S3method(print,whisper_pipeline)
 
+importFrom(stats,median)
 importFrom(stats,setNames)
 importFrom(utils,capture.output)
 importFrom(utils,download.file)

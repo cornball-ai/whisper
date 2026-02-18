@@ -14,7 +14,7 @@
 | `load_audio` | file |
 | `load_whisper_model` | model, device, dtype, download, verbose |
 | `model_exists` | model |
-| `transcribe` | file, model, language, task, timestamps, word_timestamps, device, dtype, verbose |
+| `transcribe` | file, model, language, task, timestamps, word_timestamps, beam_size, temperatures, best_of, compression_ratio_threshold, logprob_threshold, length_penalty, patience, device, dtype, verbose |
 | `whisper_config` | model |
 | `whisper_device` |  |
 | `whisper_dtype` | device |
@@ -29,9 +29,11 @@
 | `apply_bpe` | tokens, merge_ranks |
 | `apply_timestamp_rules` | logits, generated, special, sample_begin |
 | `audio_duration` | file |
+| `beam_search_decode` | model, encoder_output, initial_tokens, tokenizer, beam_size, max_length, timestamps, word_timestamps, length_penalty, patience, device |
 | `build_byte_decoder` |  |
 | `byte_to_token` | byte |
 | `clean_text` | text |
+| `compression_ratio` | text |
 | `compute_stft` | audio, n_fft, hop_length |
 | `compute_word_timestamps` | tokens, cross_attn_weights, tokenizer, config, time_offset, sample_begin |
 | `copy_if_exists` | param, weights, name |
@@ -40,10 +42,13 @@
 | `create_mel_filterbank_fallback` | n_fft, n_mels, sample_rate |
 | `decode_bpe_bytes` | text |
 | `decode_timestamp` | token_id, model |
+| `decode_with_fallback` | model, encoder_output, initial_tokens, tokenizer, temperatures, beam_size, best_of, max_length, timestamps, word_timestamps, compression_ratio_threshold, logprob_threshold, length_penalty, patience, device |
 | `download_tokenizer_files` | model |
 | `dtw_align` | cost |
 | `ensure_tokenizer_files` | model |
+| `expand_kv_cache` | kv_cache, beam_size |
 | `extract_segments` | tokens, tokenizer, time_offset |
+| `forced_decode` | model, encoder_output, token_ids, device |
 | `get_initial_tokens` | language, task, model, timestamps |
 | `get_model_path` | model |
 | `get_weights_path` | model |
@@ -61,13 +66,15 @@
 | `pad_or_trim` | audio, length |
 | `parse_device` | device |
 | `parse_dtype` | dtype, device |
-| `pipeline_transcribe` | pipe, file, language, task, timestamps, word_timestamps, verbose |
+| `pipeline_transcribe` | pipe, file, language, task, timestamps, word_timestamps, beam_size, temperatures, best_of, compression_ratio_threshold, logprob_threshold, length_penalty, patience, verbose |
 | `print.whisper_pipeline` | x, ... |
+| `rearrange_kv_cache` | kv_cache, beam_indices, device |
+| `sample_decode` | model, encoder_output, initial_tokens, tokenizer, temperature, max_length, timestamps, word_timestamps, device |
 | `split_audio` | file, chunk_length, overlap |
 | `tokenizer_decode` | ids, id_to_token, special_tokens |
 | `tokenizer_encode` | text, vocab, merge_ranks |
-| `transcribe_chunk` | file, model, tokenizer, config, language, task, timestamps, word_timestamps, time_offset, device, dtype, verbose |
-| `transcribe_long` | file, model, tokenizer, config, language, task, timestamps, word_timestamps, device, dtype, verbose |
+| `transcribe_chunk` | file, model, tokenizer, config, language, task, timestamps, word_timestamps, beam_size, temperatures, best_of, compression_ratio_threshold, logprob_threshold, length_penalty, patience, time_offset, device, dtype, verbose |
+| `transcribe_long` | file, model, tokenizer, config, language, task, timestamps, word_timestamps, beam_size, temperatures, best_of, compression_ratio_threshold, logprob_threshold, length_penalty, patience, device, dtype, verbose |
 | `whisper_attention` | n_state, n_head |
 | `whisper_decoder` | n_vocab, n_ctx, n_state, n_head, n_layer |
 | `whisper_decoder_layer` | n_state, n_head |
@@ -197,6 +204,73 @@ dim(mel)
 ```
 
 
+## beam_search_decode
+
+### Beam Search Decode
+
+#### Description
+
+Beam search decoding for Whisper. Maintains multiple hypotheses
+and selects the best one based on length-normalized log probability.
+
+#### Usage
+
+```r
+beam_search_decode(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  beam_size = 5L,
+  max_length = 448L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  length_penalty = 1,
+  patience = Inf,
+  device
+)
+```
+
+#### Arguments
+
+- **`model`**: WhisperModel
+- **`encoder_output`**: Encoder hidden states (batch=1)
+- **`initial_tokens`**: Initial token tensor (batch=1)
+- **`tokenizer`**: Tokenizer
+- **`beam_size`**: Number of beams
+- **`max_length`**: Maximum output length
+- **`timestamps`**: Whether to allow timestamp tokens
+- **`word_timestamps`**: Whether to collect cross-attention weights
+- **`length_penalty`**: Length penalty exponent
+- **`patience`**: Patience factor (stop after patience*beam_size finished)
+- **`device`**: Device
+
+#### Value
+
+List with tokens, cross_attn_weights, sum_logprob, n_tokens
+
+
+## build_byte_decoder
+
+### Build Reverse Byte Decoder
+
+#### Description
+
+Inverts the GPT-2 byte-to-unicode mapping used by byte_to_token().
+Cached after first call.
+
+#### Usage
+
+```r
+build_byte_decoder()
+```
+
+#### Value
+
+Named character vector mapping unicode codepoint (as string) to
+  raw byte value
+
+
 ## byte_to_token
 
 ### Convert Byte to BPE Token
@@ -241,6 +315,30 @@ clean_text(text)
 #### Value
 
 Cleaned text
+
+
+## compression_ratio
+
+### Compression Ratio
+
+#### Description
+
+Ratio of raw to compressed text size. High values indicate repetitive
+or hallucinated output.
+
+#### Usage
+
+```r
+compression_ratio(text)
+```
+
+#### Arguments
+
+- **`text`**: Character string
+
+#### Value
+
+Numeric compression ratio
 
 
 ## compute_stft
@@ -409,7 +507,8 @@ Mel filterbank matrix (n_mels x n_freqs)
 
 #### Description
 
-Decode BPE Bytes Back to Text
+Reverses the GPT-2 byte-level encoding, converting unicode tokens
+back to raw UTF-8 bytes.
 
 #### Usage
 
@@ -423,7 +522,7 @@ decode_bpe_bytes(text)
 
 #### Value
 
-Decoded text
+Decoded UTF-8 text
 
 
 ## decode_timestamp
@@ -448,6 +547,61 @@ decode_timestamp(token_id, model = "tiny")
 #### Value
 
 Time in seconds
+
+
+## decode_with_fallback
+
+### Decode with Temperature Fallback
+
+#### Description
+
+Try decoding at progressively higher temperatures until quality
+thresholds are met. At temperature 0, uses beam search (or greedy
+if beam_size=1). At temperature > 0, uses sampling with best-of.
+
+#### Usage
+
+```r
+decode_with_fallback(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+  beam_size = 5L,
+  best_of = 5L,
+  max_length = 448L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
+  device
+)
+```
+
+#### Arguments
+
+- **`model`**: WhisperModel
+- **`encoder_output`**: Encoder hidden states
+- **`initial_tokens`**: Initial token tensor
+- **`tokenizer`**: Tokenizer
+- **`temperatures`**: Numeric vector of temperatures to try
+- **`beam_size`**: Number of beams for temp=0
+- **`best_of`**: Number of samples for temp>0
+- **`max_length`**: Maximum output length
+- **`timestamps`**: Whether to allow timestamp tokens
+- **`word_timestamps`**: Whether to collect cross-attention weights
+- **`compression_ratio_threshold`**: Max compression ratio
+- **`logprob_threshold`**: Min average log probability
+- **`length_penalty`**: Length penalty for beam search
+- **`patience`**: Patience factor for beam search
+- **`device`**: Device
+
+#### Value
+
+List with tokens, cross_attn_weights, sum_logprob, n_tokens
 
 
 ## download_tokenizer_files
@@ -552,6 +706,30 @@ ensure_tokenizer_files(model)
 Path to vocab directory (directory containing vocab.json)
 
 
+## expand_kv_cache
+
+### Expand KV Cache for Beam Search
+
+#### Description
+
+Replicate batch=1 KV cache to batch=beam_size.
+
+#### Usage
+
+```r
+expand_kv_cache(kv_cache, beam_size)
+```
+
+#### Arguments
+
+- **`kv_cache`**: List of per-layer KV caches (batch=1)
+- **`beam_size`**: Number of beams
+
+#### Value
+
+Expanded KV cache (batch=beam_size)
+
+
 ## extract_segments
 
 ### Extract Segments with Timestamps
@@ -575,6 +753,34 @@ extract_segments(tokens, tokenizer, time_offset = 0)
 #### Value
 
 Data frame with start, end, text
+
+
+## forced_decode
+
+### Forced Decode
+
+#### Description
+
+Teacher-forcing decode: feed known token sequence one at a time,
+collecting cross-attention weights. Used by beam search when
+word_timestamps is needed.
+
+#### Usage
+
+```r
+forced_decode(model, encoder_output, token_ids, device)
+```
+
+#### Arguments
+
+- **`model`**: WhisperModel
+- **`encoder_output`**: Encoder hidden states
+- **`token_ids`**: Integer vector of all token IDs (including initial)
+- **`device`**: Device
+
+#### Value
+
+List of cross-attention weight lists (one per content step)
 
 
 ## get_initial_tokens
@@ -1165,6 +1371,13 @@ pipeline_transcribe(
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = 0,
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
   verbose = TRUE
 )
 ```
@@ -1177,11 +1390,85 @@ pipeline_transcribe(
 - **`task`**: Task type.
 - **`timestamps`**: Return segment-level timestamps.
 - **`word_timestamps`**: Return word-level timestamps.
+- **`beam_size`**: Number of beams for beam search.
+- **`temperatures`**: Numeric vector of temperatures for fallback.
+- **`best_of`**: Number of samples per temperature > 0.
+- **`compression_ratio_threshold`**: Max compression ratio before fallback.
+- **`logprob_threshold`**: Min average log probability before fallback.
+- **`length_penalty`**: Length penalty exponent for beam search.
+- **`patience`**: Patience factor for beam search.
 - **`verbose`**: Print progress.
 
 #### Value
 
 List with text, language, and metadata.
+
+
+## rearrange_kv_cache
+
+### Rearrange KV Cache by Beam Indices
+
+#### Description
+
+Reorder cached key-value tensors to match new beam ordering.
+
+#### Usage
+
+```r
+rearrange_kv_cache(kv_cache, beam_indices, device)
+```
+
+#### Arguments
+
+- **`kv_cache`**: List of per-layer KV caches
+- **`beam_indices`**: Integer tensor of beam indices (1-indexed)
+- **`device`**: Device
+
+#### Value
+
+Reordered KV cache
+
+
+## sample_decode
+
+### Sample Decode
+
+#### Description
+
+Temperature-scaled sampling decode. Fork of greedy_decode that
+uses categorical sampling instead of argmax.
+
+#### Usage
+
+```r
+sample_decode(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  temperature = 0.6,
+  max_length = 448L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  device
+)
+```
+
+#### Arguments
+
+- **`model`**: WhisperModel
+- **`encoder_output`**: Encoder hidden states
+- **`initial_tokens`**: Initial token tensor (batch=1)
+- **`tokenizer`**: Tokenizer
+- **`temperature`**: Sampling temperature (must be > 0)
+- **`max_length`**: Maximum output length
+- **`timestamps`**: Whether to allow timestamp tokens
+- **`word_timestamps`**: Whether to collect cross-attention weights
+- **`device`**: Device
+
+#### Value
+
+List with tokens, cross_attn_weights, sum_logprob, n_tokens
 
 
 ## split_audio
@@ -1279,6 +1566,13 @@ transcribe_chunk(
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = 0,
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
   time_offset = 0,
   device,
   dtype,
@@ -1294,6 +1588,16 @@ transcribe_chunk(
 - **`config`**: Model config
 - **`language`**: Language code
 - **`task`**: Task type
+- **`timestamps`**: Return segment-level timestamps.
+- **`word_timestamps`**: Return word-level timestamps.
+- **`beam_size`**: Number of beams for beam search.
+- **`temperatures`**: Numeric vector of temperatures for fallback.
+- **`best_of`**: Number of samples per temperature > 0.
+- **`compression_ratio_threshold`**: Max compression ratio before fallback.
+- **`logprob_threshold`**: Min average log probability before fallback.
+- **`length_penalty`**: Length penalty exponent for beam search.
+- **`patience`**: Patience factor for beam search.
+- **`time_offset`**: Time offset in seconds for chunk processing.
 - **`device`**: Device
 - **`dtype`**: Dtype
 - **`verbose`**: Verbose output
@@ -1323,6 +1627,13 @@ transcribe_long(
   task,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = 0,
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
   device,
   dtype,
   verbose
@@ -1337,6 +1648,15 @@ transcribe_long(
 - **`config`**: Model config
 - **`language`**: Language
 - **`task`**: Task
+- **`timestamps`**: Return segment-level timestamps.
+- **`word_timestamps`**: Return word-level timestamps.
+- **`beam_size`**: Number of beams for beam search.
+- **`temperatures`**: Numeric vector of temperatures for fallback.
+- **`best_of`**: Number of samples per temperature > 0.
+- **`compression_ratio_threshold`**: Max compression ratio before fallback.
+- **`logprob_threshold`**: Min average log probability before fallback.
+- **`length_penalty`**: Length penalty exponent for beam search.
+- **`patience`**: Patience factor for beam search.
 - **`device`**: Device
 - **`dtype`**: Dtype
 - **`verbose`**: Verbose
@@ -1366,6 +1686,13 @@ transcribe(
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = 0,
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
   device = "auto",
   dtype = "auto",
   verbose = TRUE
@@ -1380,6 +1707,14 @@ transcribe(
 - **`task`**: "transcribe" or "translate" (translate to English)
 - **`timestamps`**: If TRUE, return segment-level timestamps
 - **`word_timestamps`**: If TRUE, return word-level timestamps (implies timestamps)
+- **`beam_size`**: Number of beams for beam search (1 = greedy, default)
+- **`temperatures`**: Numeric vector of temperatures to try. 0 uses beam search
+or greedy; values > 0 use sampling. Multiple values enable fallback.
+- **`best_of`**: Number of samples per temperature > 0, keeping the best.
+- **`compression_ratio_threshold`**: Max compression ratio before fallback.
+- **`logprob_threshold`**: Min average log probability before fallback.
+- **`length_penalty`**: Length penalty exponent for beam search scoring.
+- **`patience`**: Patience factor for beam search (stop after patience*beam_size).
 - **`device`**: Device: "auto", "cpu", "cuda"
 - **`dtype`**: Data type: "auto", "float16", "float32"
 - **`verbose`**: Print progress messages

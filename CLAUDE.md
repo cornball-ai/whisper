@@ -20,7 +20,7 @@ Audio (WAV/MP3) -> Mel Spectrogram -> Encoder (transformer) -> Decoder (cross-at
 
 ## Key Exports
 
-- `transcribe(file, model, language, timestamps, word_timestamps)` - Main transcription function
+- `transcribe(file, model, language, timestamps, word_timestamps, beam_size, temperatures)` - Main transcription function
 - `whisper_pipeline(model)` - Load model once, call `$transcribe()` repeatedly
 - `load_whisper_model(model, device, dtype)` - Load model weights
 - `audio_to_mel(file, n_mels)` - Convert audio to mel spectrogram
@@ -42,6 +42,13 @@ result$segments  # data.frame(start, end, text)
 # Word-level timestamps (cross-attention DTW alignment)
 result <- transcribe("audio.wav", word_timestamps = TRUE)
 result$words  # data.frame(word, start, end)
+
+# Beam search (better accuracy, slower)
+result <- transcribe("audio.wav", beam_size = 5L)
+
+# Temperature fallback (handles difficult audio)
+result <- transcribe("audio.wav", beam_size = 5L,
+                     temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1.0))
 ```
 
 ## Development
@@ -65,7 +72,7 @@ Uses safetensors format from HuggingFace:
 
 ## File Structure
 
-- `R/transcribe.R` - Main API, greedy decode, timestamp logit rules
+- `R/transcribe.R` - Main API, greedy/beam/sample decode, timestamp logit rules, temperature fallback
 - `R/alignment.R` - DTW alignment, word timestamp computation
 - `R/audio.R` - Audio to mel spectrogram
 - `R/encoder.R` - Encoder transformer (with `need_weights` dual-path attention)
@@ -91,6 +98,9 @@ Uses safetensors format from HuggingFace:
 - HuggingFace model downloads via `hfhub`
 - KV cache for efficient incremental decoding
 - Long audio support (automatic chunking with time offsets)
+- Beam search decoding with length-normalized scoring
+- Temperature sampling with best-of selection
+- Temperature fallback with compression ratio and logprob quality checks
 
 ### R torch notes
 
@@ -101,8 +111,3 @@ Uses safetensors format from HuggingFace:
 ### Known Limitations
 
 - Translation quality varies by model size (larger models work better)
-- No beam search (greedy decoding only)
-
-### Potential Improvements
-
-- Beam search decoding

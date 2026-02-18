@@ -25,10 +25,12 @@
 ^codecov\.yml$
 ^appveyor\.yml$
 
+# Development scripts
+^scripts$
+
 # Package development
 ^cran-comments\.md$
 ^revdep$
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
-^CLAUDE\.md$
