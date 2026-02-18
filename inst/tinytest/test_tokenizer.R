@@ -26,3 +26,28 @@ expect_equal(whisper:::decode_timestamp(50364L), 0)
 expect_equal(whisper:::decode_timestamp(50365L), 0.02)
 expect_equal(whisper:::decode_timestamp(50414L), 1.0) # 50 * 0.02
 
+# Test byte_to_token / decode_bpe_bytes round-trip
+# ASCII
+ascii_text <- "hello world"
+ascii_bpe <- paste(sapply(charToRaw(ascii_text), function(b) {
+  whisper:::byte_to_token(as.integer(b))
+}), collapse = "")
+expect_equal(whisper:::decode_bpe_bytes(ascii_bpe), ascii_text)
+
+# Non-ASCII (accented Latin)
+utf8_text <- "caf\u00e9"
+utf8_bpe <- paste(sapply(charToRaw(utf8_text), function(b) {
+  whisper:::byte_to_token(as.integer(b))
+}), collapse = "")
+expect_equal(whisper:::decode_bpe_bytes(utf8_bpe), utf8_text)
+
+# CJK characters
+cjk_text <- "\u4e16\u754c"
+cjk_bpe <- paste(sapply(charToRaw(cjk_text), function(b) {
+  whisper:::byte_to_token(as.integer(b))
+}), collapse = "")
+expect_equal(whisper:::decode_bpe_bytes(cjk_bpe), cjk_text)
+
+# Empty string
+expect_equal(whisper:::decode_bpe_bytes(""), "")
+

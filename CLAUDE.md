@@ -100,11 +100,9 @@ Uses safetensors format from HuggingFace:
 
 ### Known Limitations
 
-- UTF-8 encoding issues with some non-ASCII characters in output
 - Translation quality varies by model size (larger models work better)
 - No beam search (greedy decoding only)
 
 ### Potential Improvements
 
 - Beam search decoding
-- Fix UTF-8 byte decoding in tokenizer

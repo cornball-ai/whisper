@@ -214,20 +214,56 @@ tokenizer_decode <- function(
   text
 }
 
+#' Build Reverse Byte Decoder
+#'
+#' Inverts the GPT-2 byte-to-unicode mapping used by byte_to_token().
+#' Cached after first call.
+#'
+#' @return Named character vector mapping unicode codepoint (as string) to
+#'   raw byte value
+build_byte_decoder <- function() {
+  if (!is.null(.tokenizer_cache$byte_decoder)) {
+    return(.tokenizer_cache$byte_decoder)
+  }
+  decoder <- integer(256)
+  names(decoder) <- character(256)
+  for (b in 0:255) {
+    cp <- utf8ToInt(byte_to_token(b))
+    names(decoder)[b + 1L] <- as.character(cp)
+    decoder[b + 1L] <- b
+  }
+  .tokenizer_cache$byte_decoder <- decoder
+  decoder
+}
+
+# Module-level cache for byte decoder
+.tokenizer_cache <- new.env(parent = emptyenv())
+
 #' Decode BPE Bytes Back to Text
 #'
+#' Reverses the GPT-2 byte-level encoding, converting unicode tokens
+#' back to raw UTF-8 bytes.
+#'
 #' @param text Text with BPE byte tokens
-#' @return Decoded text
+#' @return Decoded UTF-8 text
 decode_bpe_bytes <- function(text) {
-  # Replace special space token
-  text <- gsub("\u0120", " ", text, fixed = TRUE)
+  if (nchar(text) == 0) return(text)
 
-  # Handle other byte-level encodings
-  # This is a simplified version - full implementation would
+  decoder <- build_byte_decoder()
+  codepoints <- utf8ToInt(text)
+  bytes <- raw(length(codepoints))
 
-  # reverse the byte_to_token mapping
+  for (i in seq_along(codepoints)) {
+    cp_str <- as.character(codepoints[i])
+    idx <- match(cp_str, names(decoder))
+    if (!is.na(idx)) {
+      bytes[i] <- as.raw(decoder[idx])
+    } else {
+      bytes[i] <- charToRaw("?")
+    }
+  }
 
-  text
+  rawToChar(bytes)
 }
 
 #' Ensure Tokenizer Files are Downloaded
