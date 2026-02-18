@@ -20,7 +20,8 @@ Audio (WAV/MP3) -> Mel Spectrogram -> Encoder (transformer) -> Decoder (cross-at
 
 ## Key Exports
 
-- `transcribe(file, model, language)` - Main transcription function
+- `transcribe(file, model, language, timestamps, word_timestamps)` - Main transcription function
+- `whisper_pipeline(model)` - Load model once, call `$transcribe()` repeatedly
 - `load_whisper_model(model, device, dtype)` - Load model weights
 - `audio_to_mel(file, n_mels)` - Convert audio to mel spectrogram
 - `whisper_tokenizer()` - Get BPE tokenizer
@@ -32,7 +33,15 @@ library(whisper)
 
 # Transcribe audio
 result <- transcribe("audio.wav", model = "tiny")
-print(result$text)
+result$text
+
+# Segment timestamps (uses Whisper's built-in timestamp tokens)
+result <- transcribe("audio.wav", timestamps = TRUE)
+result$segments  # data.frame(start, end, text)
+
+# Word-level timestamps (cross-attention DTW alignment)
+result <- transcribe("audio.wav", word_timestamps = TRUE)
+result$words  # data.frame(word, start, end)
 ```
 
 ## Development
@@ -56,13 +65,14 @@ Uses safetensors format from HuggingFace:
 
 ## File Structure
 
-- `R/transcribe.R` - Main API
+- `R/transcribe.R` - Main API, greedy decode, timestamp logit rules
+- `R/alignment.R` - DTW alignment, word timestamp computation
 - `R/audio.R` - Audio to mel spectrogram
-- `R/encoder.R` - Encoder transformer
+- `R/encoder.R` - Encoder transformer (with `need_weights` dual-path attention)
 - `R/decoder.R` - Decoder with cross-attention
 - `R/model.R` - Full model + weight loading
 - `R/tokenizer.R` - Whisper BPE tokenizer
-- `R/config.R` - Model configurations
+- `R/config.R` - Model configurations + alignment heads
 - `R/download.R` - HuggingFace model download
 - `R/devices.R` - Device/dtype management
 
@@ -75,10 +85,12 @@ Uses safetensors format from HuggingFace:
 - Transcription and translation (any language to English)
 - All model sizes: tiny, base, small, medium, large-v3
 - CPU and CUDA support
+- Segment-level timestamps (Whisper timestamp tokens with logit suppression)
+- Word-level timestamps (cross-attention DTW alignment)
 - Pre-computed mel filterbank from official Whisper
 - HuggingFace model downloads via `hfhub`
 - KV cache for efficient incremental decoding
-- Long audio support (automatic chunking)
+- Long audio support (automatic chunking with time offsets)
 
 ### R torch notes
 
@@ -88,12 +100,9 @@ Uses safetensors format from HuggingFace:
 
 ### Known Limitations
 
-- UTF-8 encoding issues with some non-ASCII characters in output
 - Translation quality varies by model size (larger models work better)
 - No beam search (greedy decoding only)
 
 ### Potential Improvements
 
 - Beam search decoding
-- Word-level timestamps (requires cross-attention analysis)
-- Fix UTF-8 byte decoding in tokenizer

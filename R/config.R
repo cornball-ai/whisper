@@ -30,7 +30,11 @@ whisper_config <- function(model = "tiny") {
       n_text_state = 384L,
       n_text_head = 6L,
       n_text_layer = 4L,
-      hf_repo = "openai/whisper-tiny"
+      hf_repo = "openai/whisper-tiny",
+      # (layer, head) pairs for cross-attention alignment (0-indexed)
+      alignment_heads = matrix(c(
+        1, 0, 2, 0, 2, 5, 3, 0, 3, 1, 3, 2, 3, 3, 3, 4
+      ), ncol = 2, byrow = TRUE)
     ),
     base = list(
       n_mels = 80L,
@@ -43,7 +47,10 @@ whisper_config <- function(model = "tiny") {
       n_text_state = 512L,
       n_text_head = 8L,
       n_text_layer = 6L,
-      hf_repo = "openai/whisper-base"
+      hf_repo = "openai/whisper-base",
+      alignment_heads = matrix(c(
+        3, 1, 4, 2, 4, 3, 4, 7, 5, 1, 5, 2, 5, 4, 5, 6
+      ), ncol = 2, byrow = TRUE)
     ),
     small = list(
       n_mels = 80L,
@@ -56,7 +63,11 @@ whisper_config <- function(model = "tiny") {
       n_text_state = 768L,
       n_text_head = 12L,
       n_text_layer = 12L,
-      hf_repo = "openai/whisper-small"
+      hf_repo = "openai/whisper-small",
+      alignment_heads = matrix(c(
+        6, 6, 7, 0, 7, 3, 7, 8, 8, 2, 8, 5, 8, 7, 9, 0, 9, 4, 9, 8,
+        9, 10, 10, 0, 10, 1, 10, 2, 10, 3, 10, 6, 10, 11, 11, 2, 11, 4
+      ), ncol = 2, byrow = TRUE)
     ),
     medium = list(
       n_mels = 80L,
@@ -69,7 +80,10 @@ whisper_config <- function(model = "tiny") {
       n_text_state = 1024L,
       n_text_head = 16L,
       n_text_layer = 24L,
-      hf_repo = "openai/whisper-medium"
+      hf_repo = "openai/whisper-medium",
+      alignment_heads = matrix(c(
+        13, 15, 15, 4, 15, 15, 16, 1, 20, 0, 23, 4
+      ), ncol = 2, byrow = TRUE)
     ),
     `large-v3` = list(
       n_mels = 128L,
@@ -82,7 +96,10 @@ whisper_config <- function(model = "tiny") {
       n_text_state = 1280L,
       n_text_head = 20L,
       n_text_layer = 32L,
-      hf_repo = "openai/whisper-large-v3"
+      hf_repo = "openai/whisper-large-v3",
+      alignment_heads = matrix(c(
+        9, 19, 11, 2, 11, 4, 11, 17, 22, 7, 22, 11, 22, 17, 23, 2, 23, 15
+      ), ncol = 2, byrow = TRUE)
     )
   )
 

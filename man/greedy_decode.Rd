@@ -9,6 +9,8 @@ greedy_decode(
   initial_tokens,
   tokenizer,
   max_length = 448L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
   device
 )
 }
@@ -23,10 +25,15 @@ greedy_decode(
 
 \item{max_length}{Maximum output length}
 
+\item{timestamps}{Whether to allow timestamp tokens}
+
+\item{word_timestamps}{Whether to collect cross-attention weights}
+
 \item{device}{Device}
 }
 \value{
-Integer vector of generated tokens
+Integer vector of generated tokens, or list with tokens and
+  cross_attn_weights when word_timestamps is TRUE
 }
 \description{
 Greedy Decoding

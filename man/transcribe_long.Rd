@@ -10,6 +10,8 @@ transcribe_long(
   config,
   language,
   task,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
   device,
   dtype,
   verbose

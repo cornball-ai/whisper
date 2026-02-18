@@ -70,15 +70,45 @@ result <- transcribe(allende, language = "es")
 result <- transcribe(allende, task = "translate", language = "es", model = "small")
 ```
 
+## Timestamps
+
+```r
+# Segment-level timestamps
+result <- transcribe("audio.wav", timestamps = TRUE)
+result$segments
+#>   start  end                         text
+#> 1  0.00 7.44 Ask not what your country...
+
+# Word-level timestamps (via cross-attention DTW alignment)
+result <- transcribe("audio.wav", word_timestamps = TRUE)
+result$words
+#>      word start  end
+#> 1     Ask  0.00 0.54
+#> 2     not  0.54 1.16
+#> 3    what  1.16 2.46
+#> ...
+```
+
+Both work with the pipeline API for repeated transcription:
+
+```r
+pipe <- whisper_pipeline("tiny")
+result <- pipe$transcribe("audio.wav", word_timestamps = TRUE)
+result$words
+```
+
 ## Models
 
-| Model | Parameters | Size | English WER |
-|-------|------------|------|-------------|
-| tiny | 39M | 151 MB | ~9% |
-| base | 74M | 290 MB | ~7% |
-| small | 244M | 967 MB | ~5% |
-| medium | 769M | 3.0 GB | ~4% |
-| large-v3 | 1550M | 6.2 GB | ~3% |
+| Model | Parameters | Disk (fp32) | English WER | Peak VRAM (CUDA fp16) | Speed* |
+|-------|------------|-------------|-------------|----------------------|--------|
+| tiny | 39M | 151 MB | ~9% | 564 MiB | 5.5s |
+| base | 74M | 290 MB | ~7% | 734 MiB | 1.9s |
+| small | 244M | 967 MB | ~5% | 1,454 MiB | 3.6s |
+| medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 8.6s |
+| large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 16.7s |
+
+*Speed measured on RTX 5060 Ti transcribing a 17s audio clip with `word_timestamps = TRUE`.
+Peak VRAM includes ~364 MiB torch CUDA context overhead.
 
 Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
