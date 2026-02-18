@@ -36,9 +36,6 @@ whisper_pipeline <- function(
   tokenizer <- whisper_tokenizer(model)
   config <- whisper_config(model)
 
-  # Pre-warm token cache (avoids 200ms hub_download on first transcribe)
-  whisper_special_tokens(model)
-
   pipe <- list(
     model = whisper,
     tokenizer = tokenizer,

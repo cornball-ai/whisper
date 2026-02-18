@@ -1,6 +1,3 @@
-# Package-level cache for expensive lookups (special tokens, added_tokens.json)
-.whisper_cache <- new.env(parent = emptyenv())
-
 #' Whisper Model Configurations
 #'
 #' Get configuration for a Whisper model variant.
@@ -121,59 +118,22 @@ whisper_config <- function(model = "tiny") {
 #' @param model Model name (default: "tiny")
 #' @return Named list of special token IDs
 whisper_special_tokens <- function(model = "tiny") {
-  cache_key <- paste0(".special_tokens_", model)
-  cached <- .whisper_cache[[cache_key]]
-  if (!is.null(cached)) return(cached)
-
-  # Load from model's added_tokens.json for accuracy
-  cfg <- whisper_config(model)
-  added_tokens <- load_added_tokens(cfg$hf_repo)
-
-  # Helper to get token with fallback
-  get_token <- function(
-    name,
-    default
-  ) {
-    if (!is.null(added_tokens) && name %in% names(added_tokens)) {
-      as.integer(added_tokens[[name]])
-    } else {
-      default
-    }
+  # large-v3 has extra language tokens that shift IDs by 1
+  if (model == "large-v3") {
+    list(
+      sot = 50258L, eot = 50257L, translate = 50359L,
+      transcribe = 50360L, no_speech = 50363L,
+      no_timestamps = 50364L, timestamp_begin = 50365L,
+      lang_en = 50259L
+    )
+  } else {
+    list(
+      sot = 50258L, eot = 50257L, translate = 50358L,
+      transcribe = 50359L, no_speech = 50362L,
+      no_timestamps = 50363L, timestamp_begin = 50364L,
+      lang_en = 50259L
+    )
   }
-
-  # Extract special tokens, using fallbacks for tokens not in added_tokens.json
-  # (Some models have tokens in vocab.json instead of added_tokens.json)
-  result <- list(
-    sot = get_token("<|startoftranscript|>", 50258L),
-    eot = get_token("<|endoftext|>", 50257L),
-    translate = get_token("<|translate|>", 50358L),
-    transcribe = get_token("<|transcribe|>", 50359L),
-    no_speech = get_token("<|nospeech|>", 50362L),
-    no_timestamps = get_token("<|notimestamps|>", 50363L),
-    timestamp_begin = get_token("<|0.00|>", 50364L),
-    lang_en = get_token("<|en|>", 50259L)
-  )
-  .whisper_cache[[cache_key]] <- result
-  result
-}
-
-#' Load Added Tokens from HuggingFace
-#'
-#' @param repo HuggingFace repo ID
-#' @return Named list of token -> ID mappings, or NULL if not found
-load_added_tokens <- function(repo) {
-  cache_key <- paste0(".added_tokens_", repo)
-  cached <- .whisper_cache[[cache_key]]
-  if (!is.null(cached)) return(cached)
-
-  result <- tryCatch({
-      path <- hfhub::hub_download(repo, "added_tokens.json")
-      jsonlite::fromJSON(path)
-    }, error = function(e) {
-      NULL
-    })
-  if (!is.null(result)) .whisper_cache[[cache_key]] <- result
-  result
 }
 
 #' Get Language Token ID
@@ -185,19 +145,7 @@ whisper_lang_token <- function(
   lang = "en",
   model = "tiny"
 ) {
-  # Load from model's added_tokens.json for accuracy
-  cfg <- whisper_config(model)
-  added_tokens <- load_added_tokens(cfg$hf_repo)
-
-  if (!is.null(added_tokens)) {
-    # Look up language token directly
-    token_name <- paste0("<|", lang, "|>")
-    if (token_name %in% names(added_tokens)) {
-      return(as.integer(added_tokens[[token_name]]))
-    }
-  }
-
-  # Fallback to offset calculation (works for tiny/base/small/medium)
+  # Language tokens start at 50259 for all models
   langs <- c(
     en = 0L, zh = 1L, de = 2L, es = 3L, ru = 4L, ko = 5L, fr = 6L,
     ja = 7L, pt = 8L, tr = 9L, pl = 10L, ca = 11L, nl = 12L, ar = 13L,
