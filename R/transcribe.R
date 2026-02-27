@@ -299,6 +299,8 @@ transcribe_chunk <- function(
 
     if (seek == 0L) {
       mel <- full_mel
+    } else if (seek + 1L > n_frames) {
+      break
     } else {
       # Slice mel[1, :, seek:] and pad to n_frames width
       mel_slice <- full_mel[, , (seek + 1L):n_frames]
@@ -335,6 +337,7 @@ transcribe_chunk <- function(
       device = device)
 
     generated <- decode_result$tokens
+    all_generated <- c(all_generated, generated)
 
     # Find the last timestamp token to determine where to seek next
     last_ts_frame <- 0L

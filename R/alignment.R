@@ -231,19 +231,25 @@ dtw_align <- function(cost) {
   D[1, 1] <- cost[1, 1]
 
   # First row: can only come from the left
-  for (j in 2:m) {
-    D[1, j] <- D[1, j - 1] + cost[1, j]
+  if (m >= 2L) {
+    for (j in 2:m) {
+      D[1, j] <- D[1, j - 1] + cost[1, j]
+    }
   }
 
   # First column: can only come from above
-  for (i in 2:n) {
-    D[i, 1] <- D[i - 1, 1] + cost[i, 1]
+  if (n >= 2L) {
+    for (i in 2:n) {
+      D[i, 1] <- D[i - 1, 1] + cost[i, 1]
+    }
   }
 
   # Fill rest
-  for (i in 2:n) {
-    for (j in 2:m) {
-      D[i, j] <- cost[i, j] + min(D[i - 1, j], D[i, j - 1], D[i - 1, j - 1])
+  if (n >= 2L && m >= 2L) {
+    for (i in 2:n) {
+      for (j in 2:m) {
+        D[i, j] <- cost[i, j] + min(D[i - 1, j], D[i, j - 1], D[i - 1, j - 1])
+      }
     }
   }
 
