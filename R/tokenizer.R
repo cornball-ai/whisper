@@ -263,7 +263,16 @@ decode_bpe_bytes <- function(text) {
     }
   }
 
-  rawToChar(bytes)
+  # Write raw bytes to a connection and read back as UTF-8,
+
+  # replacing any invalid multibyte sequences
+  tmp <- tempfile()
+  on.exit(unlink(tmp), add = TRUE)
+  writeBin(bytes, tmp)
+  out <- readLines(tmp, warn = FALSE, encoding = "UTF-8")
+  out <- paste(out, collapse = "\n")
+  # Strip any remaining invalid bytes
+  iconv(out, from = "UTF-8", to = "UTF-8", sub = "")
 }
 
 #' Ensure Tokenizer Files are Downloaded
