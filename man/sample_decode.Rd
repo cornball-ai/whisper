@@ -3,17 +3,9 @@
 \alias{sample_decode}
 \title{Sample Decode}
 \usage{
-sample_decode(
-  model,
-  encoder_output,
-  initial_tokens,
-  tokenizer,
-  temperature = 0.6,
-  max_length = 448L,
-  timestamps = FALSE,
-  word_timestamps = FALSE,
-  device
-)
+sample_decode(model, encoder_output, initial_tokens, tokenizer,
+              temperature = 0.6, max_length = 448L, timestamps = FALSE,
+              word_timestamps = FALSE, device)
 }
 \arguments{
 \item{model}{WhisperModel}

@@ -3,13 +3,8 @@
 \alias{load_whisper_model}
 \title{Load Whisper Model}
 \usage{
-load_whisper_model(
-  model = "tiny",
-  device = "auto",
-  dtype = "auto",
-  download = FALSE,
-  verbose = TRUE
-)
+load_whisper_model(model = "tiny", device = "auto", dtype = "auto",
+                   download = FALSE, verbose = TRUE)
 }
 \arguments{
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}

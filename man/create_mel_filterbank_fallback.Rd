@@ -3,11 +3,8 @@
 \alias{create_mel_filterbank_fallback}
 \title{Create Mel Filterbank (Fallback)}
 \usage{
-create_mel_filterbank_fallback(
-  n_fft = WHISPER_N_FFT,
-  n_mels = 80L,
-  sample_rate = WHISPER_SAMPLE_RATE
-)
+create_mel_filterbank_fallback(n_fft = WHISPER_N_FFT, n_mels = 80L,
+                               sample_rate = WHISPER_SAMPLE_RATE)
 }
 \arguments{
 \item{n_fft}{FFT size}

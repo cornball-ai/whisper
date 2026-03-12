@@ -46,7 +46,7 @@ whisper_pipeline <- function(
 
   pipe$transcribe <- function(
     file,
-    language = "en",
+    language = NULL,
     task = "transcribe",
     timestamps = FALSE,
     word_timestamps = FALSE,
@@ -101,7 +101,7 @@ print.whisper_pipeline <- function(x, ...) {
 pipeline_transcribe <- function(
   pipe,
   file,
-  language = "en",
+  language = NULL,
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
@@ -159,7 +159,8 @@ pipeline_transcribe <- function(
 #'
 #' @param file Path to audio file (WAV, MP3, etc.)
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
-#' @param language Language code (e.g., "en", "es"). NULL for auto-detection.
+#' @param language Language code (e.g., "en", "es"), or NULL (default) for
+#'   auto-detection from the audio.
 #' @param task "transcribe" or "translate" (translate to English)
 #' @param timestamps If TRUE, return segment-level timestamps
 #' @param word_timestamps If TRUE, return word-level timestamps (implies timestamps)
@@ -181,11 +182,16 @@ pipeline_transcribe <- function(
 #' @export
 #' @examples
 #' \donttest{
-#' # Transcribe included sample (JFK "ask not" speech)
 #' if (model_exists("tiny")) {
 #'   audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+#'
+#'   # Auto-detect language (default)
 #'   result <- transcribe(audio_file, model = "tiny")
+#'   result$language  # "en"
 #'   result$text
+#'
+#'   # Explicit language
+#'   result <- transcribe(audio_file, model = "tiny", language = "en")
 #'
 #'   # With timestamps
 #'   result <- transcribe(audio_file, model = "tiny", timestamps = TRUE)
@@ -201,7 +207,7 @@ pipeline_transcribe <- function(
 transcribe <- function(
   file,
   model = "tiny",
-  language = "en",
+  language = NULL,
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
@@ -255,7 +261,7 @@ transcribe_chunk <- function(
   model,
   tokenizer,
   config,
-  language = "en",
+  language = NULL,
   task = "transcribe",
   timestamps = FALSE,
   word_timestamps = FALSE,
@@ -281,6 +287,17 @@ transcribe_chunk <- function(
   internal_timestamps <- timestamps || beam_size > 1L
 
   special <- whisper_special_tokens(config$model_name)
+
+  # Auto-detect language if not specified
+  if (is.null(language)) {
+    detection <- detect_language_from_mel(model, full_mel, config, device)
+    language <- detection$language
+    if (verbose) {
+      top <- detection$probabilities[1]
+      message("Detected language: ", language,
+        " (", round(top * 100, 1), "%)")
+    }
+  }
 
   # Seek loop: decode repeatedly, advancing through the mel spectrogram
   seek <- 0L  # current frame position
@@ -687,6 +704,19 @@ transcribe_long <- function(
   dtype,
   verbose
 ) {
+  # Auto-detect language from first 30s if not specified
+  if (is.null(language)) {
+    mel <- audio_to_mel(file, n_mels = config$n_mels, device = device,
+      dtype = dtype)
+    detection <- detect_language_from_mel(model, mel, config, device)
+    language <- detection$language
+    if (verbose) {
+      top <- detection$probabilities[1]
+      message("Detected language: ", language,
+        " (", round(top * 100, 1), "%)")
+    }
+  }
+
   # Split into chunks
   chunk_length <- 30
   overlap <- 1
