@@ -3,12 +3,8 @@
 \alias{get_initial_tokens}
 \title{Get Initial Decoder Tokens}
 \usage{
-get_initial_tokens(
-  language = "en",
-  task = "transcribe",
-  model = "tiny",
-  timestamps = FALSE
-)
+get_initial_tokens(language = "en", task = "transcribe", model = "tiny",
+                   timestamps = FALSE)
 }
 \arguments{
 \item{language}{Two-letter language code or NULL for auto}

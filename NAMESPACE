@@ -1,6 +1,7 @@
 # tinyrox says don't edit this manually, but it can't stop you!
 
 export(audio_to_mel)
+export(detect_language)
 export(download_whisper_model)
 export(list_downloaded_models)
 export(list_whisper_models)

@@ -3,16 +3,9 @@
 \alias{greedy_decode}
 \title{Greedy Decoding}
 \usage{
-greedy_decode(
-  model,
-  encoder_output,
-  initial_tokens,
-  tokenizer,
-  max_length = 448L,
-  timestamps = FALSE,
-  word_timestamps = FALSE,
-  device
-)
+greedy_decode(model, encoder_output, initial_tokens, tokenizer,
+              max_length = 448L, timestamps = FALSE, word_timestamps = FALSE,
+              device)
 }
 \arguments{
 \item{model}{WhisperModel}

@@ -145,8 +145,36 @@ whisper_lang_token <- function(
   lang = "en",
   model = "tiny"
 ) {
-  # Language tokens start at 50259 for all models
-  langs <- c(
+  langs <- whisper_language_table()
+
+  if (!lang %in% names(langs)) {
+    stop("Unknown language: ", lang)
+  }
+
+  50259L + langs[[lang]]
+}
+
+#' Get Language Code from Token ID
+#'
+#' Reverse lookup: convert a language token ID back to a two-letter code.
+#'
+#' @param token_id Integer token ID (e.g., 50259 for English)
+#' @return Two-letter language code
+whisper_lang_from_id <- function(token_id) {
+  offset <- token_id - 50259L
+  langs <- whisper_language_table()
+  idx <- match(offset, langs)
+  if (is.na(idx)) stop("Unknown language token ID: ", token_id)
+  names(langs)[idx]
+}
+
+#' Whisper Language Table
+#'
+#' Returns the named integer vector mapping language codes to offsets.
+#'
+#' @return Named integer vector (language code -> offset from 50259)
+whisper_language_table <- function() {
+  c(
     en = 0L, zh = 1L, de = 2L, es = 3L, ru = 4L, ko = 5L, fr = 6L,
     ja = 7L, pt = 8L, tr = 9L, pl = 10L, ca = 11L, nl = 12L, ar = 13L,
     sv = 14L, it = 15L, id = 16L, hi = 17L, fi = 18L, vi = 19L,
@@ -165,11 +193,5 @@ whisper_lang_token <- function(
     tt = 92L, haw = 93L, ln = 94L, ha = 95L, ba = 96L, jw = 97L,
     su = 98L
   )
-
-  if (!lang %in% names(langs)) {
-    stop("Unknown language: ", lang)
-  }
-
-  50259L + langs[[lang]]
 }
 

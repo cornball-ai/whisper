@@ -3,31 +3,19 @@
 \alias{transcribe}
 \title{Transcribe Audio}
 \usage{
-transcribe(
-  file,
-  model = "tiny",
-  language = "en",
-  task = "transcribe",
-  timestamps = FALSE,
-  word_timestamps = FALSE,
-  beam_size = 1L,
-  temperatures = 0,
-  best_of = 1L,
-  compression_ratio_threshold = 2.4,
-  logprob_threshold = -1,
-  length_penalty = 1,
-  patience = Inf,
-  device = "auto",
-  dtype = "auto",
-  verbose = TRUE
-)
+transcribe(file, model = "tiny", language = NULL, task = "transcribe",
+           timestamps = FALSE, word_timestamps = FALSE, beam_size = 1L,
+           temperatures = 0, best_of = 1L, compression_ratio_threshold = 2.4,
+           logprob_threshold = -1, length_penalty = 1, patience = Inf,
+           device = "auto", dtype = "auto", verbose = TRUE)
 }
 \arguments{
 \item{file}{Path to audio file (WAV, MP3, etc.)}
 
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
 
-\item{language}{Language code (e.g., "en", "es"). NULL for auto-detection.}
+\item{language}{Language code (e.g., "en", "es"), or NULL (default) for
+auto-detection from the audio.}
 
 \item{task}{"transcribe" or "translate" (translate to English)}
 
@@ -69,11 +57,16 @@ load the model once.
 }
 \examples{
 \donttest{
-# Transcribe included sample (JFK "ask not" speech)
 if (model_exists("tiny")) {
   audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+
+  # Auto-detect language (default)
   result <- transcribe(audio_file, model = "tiny")
+  result$language  # "en"
   result$text
+
+  # Explicit language
+  result <- transcribe(audio_file, model = "tiny", language = "en")
 
   # With timestamps
   result <- transcribe(audio_file, model = "tiny", timestamps = TRUE)

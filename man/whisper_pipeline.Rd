@@ -3,13 +3,8 @@
 \alias{whisper_pipeline}
 \title{Whisper Transcription}
 \usage{
-whisper_pipeline(
-  model = "tiny",
-  device = "auto",
-  dtype = "auto",
-  download = TRUE,
-  verbose = TRUE
-)
+whisper_pipeline(model = "tiny", device = "auto", dtype = "auto",
+                 download = TRUE, verbose = TRUE)
 }
 \arguments{
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
