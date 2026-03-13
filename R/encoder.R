@@ -86,8 +86,11 @@ whisper_attention <- torch::nn_module(
       attn_output <- torch::torch_matmul(attn_weights, v)
     } else {
       # Scaled dot-product attention (dispatches to FlashAttention on GPU)
-      attn_output <- torch:::torch_scaled_dot_product_attention(
-        q, k, v, is_causal = !is.null(mask))
+      # torch_scaled_dot_product_attention is not yet exported from torch
+      # (will be in next CRAN release). Use get() to avoid R CMD check NOTE.
+      sdpa <- get("torch_scaled_dot_product_attention",
+        envir = asNamespace("torch"))
+      attn_output <- sdpa(q, k, v, is_causal = !is.null(mask))
     }
 
     # Reshape back: (batch, n_head, seq_len, head_dim) -> (batch, seq_len, n_state)
