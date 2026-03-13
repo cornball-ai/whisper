@@ -14,7 +14,8 @@ expect_true(whisper:::compression_ratio("test") > 0,
   info = "compression ratio is positive")
 
 # --- KV cache tests (require torch) ---
-if (requireNamespace("torch", quietly = TRUE)) {
+if (requireNamespace("torch", quietly = TRUE) &&
+    torch::torch_is_installed()) {
 
   # expand_kv_cache: verify shapes
   fake_cache <- list(
