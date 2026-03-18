@@ -18,6 +18,12 @@ torch::install_torch()
 
 `{whisper}` uses `{torch}` for inference. After installing the R package, `install_torch()` downloads the compiled C++ libraries (Lantern). You only need to run it once.
 
+**littler/r2u users:** If `install_torch()` fails with a permissions error, torch was installed to the system library. Use sudo for the one-time Lantern download:
+
+```bash
+sudo r -e 'torch::install_torch()'
+```
+
 ## Quick Start
 
 ```r
