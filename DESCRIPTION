@@ -3,7 +3,8 @@ Title: Native R 'torch' Implementation of 'OpenAI' 'Whisper'
 Version: 0.3.0
 Authors@R: c(
     person("Troy", "Hernandez", role = c("aut", "cre"),
-           email = "troy@cornball.ai"),
+           email = "troy@cornball.ai",
+           comment = c(ORCID = "0009-0005-4248-604X")),
     person("cornball.ai", role = "cph"),
     person("OpenAI", role = "cph",
            comment = "Whisper model architecture and mel filterbank data (MIT license)")
