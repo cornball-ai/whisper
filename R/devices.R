@@ -26,7 +26,10 @@ whisper_device <- function() {
 
 #' Get Default Dtype
 #'
-#' Returns float16 on CUDA, float32 on CPU.
+#' Returns float16 on CUDA, float32 on CPU. Exception: the GTX 16-series
+#' (TU116/TU117, e.g. GTX 1660/1650) computes float16 incorrectly and
+#' produces NaN output, so float32 is used on those cards. Pass an explicit
+#' \code{dtype = "float16"} to override.
 #'
 #' @param device torch device
 #' @return torch dtype
@@ -39,12 +42,52 @@ whisper_device <- function() {
 #' }
 #' }
 whisper_dtype <- function(device = whisper_device()) {
-  # Use float16 on CUDA, float32 on CPU
-
+  # float16 on CUDA, float32 on CPU - but fall back to float32 on GPUs with
+  # broken fp16 (see .fp16_broken_gpu).
   if (device$type == "cuda") {
-    torch::torch_float16()
+    if (.fp16_broken_gpu(device)) {
+      .fp16_warn_once()
+      torch::torch_float()
+    } else {
+      torch::torch_float16()
+    }
   } else {
     torch::torch_float()
+  }
+}
+
+# The GTX 16-series (TU116/TU117: GTX 1630/1650/1660 and their Ti/Super
+# variants) computes fp16 incorrectly - it produces NaN, surfacing as
+# repeated "!" tokens in transcription, the same hardware quirk behind the
+# "GTX 1660 black image" bug in other fp16 inference stacks. Detect by GPU
+# name and fall back to fp32. CUDA-gated and tryCatch-guarded, so it never
+# runs (or errors) on a CRAN check machine.
+.fp16_broken_gpu <- function(device = whisper_device()) {
+  if (!inherits(device, "torch_device") || device$type != "cuda") {
+    return(FALSE)
+  }
+  idx <- device$index
+  if (is.null(idx) || is.na(idx)) {
+    idx <- 0L
+  }
+  name <- tryCatch(
+    system2("nvidia-smi", c("--query-gpu=name", "--format=csv,noheader",
+      paste0("--id=", idx)), stdout = TRUE)[1],
+    error = function(e) NA_character_)
+  if (is.na(name) || !nzchar(name)) {
+    return(FALSE)
+  }
+  grepl("GTX\\s*16", name, ignore.case = TRUE)
+}
+
+# One-time message per session when falling back to fp32.
+.whisper_dtype_env <- new.env(parent = emptyenv())
+.fp16_warn_once <- function() {
+  if (is.null(.whisper_dtype_env$fp16)) {
+    message("whisper: GTX 16-series GPU detected; using float32 ",
+      "(fp16 produces NaN on these cards). ",
+      "Override with dtype = \"float16\".")
+    .whisper_dtype_env$fp16 <- TRUE
   }
 }
 
