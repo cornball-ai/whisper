@@ -57,6 +57,7 @@ whisper_pipeline <- function(
     logprob_threshold = -1.0,
     length_penalty = 1.0,
     patience = Inf,
+    jit = TRUE,
     verbose = TRUE
   ) {
     pipeline_transcribe(pipe, file, language = language, task = task,
@@ -66,7 +67,7 @@ whisper_pipeline <- function(
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
       length_penalty = length_penalty, patience = patience,
-      verbose = verbose)
+      jit = jit, verbose = verbose)
   }
 
   class(pipe) <- "whisper_pipeline"
@@ -95,6 +96,7 @@ print.whisper_pipeline <- function(x, ...) {
 #' @param logprob_threshold Min average log probability before fallback.
 #' @param length_penalty Length penalty exponent for beam search.
 #' @param patience Patience factor for beam search.
+#' @param jit Use the TorchScript greedy decode step on CUDA.
 #' @param verbose Print progress.
 #' @return List with text, language, and metadata.
 #' @keywords internal
@@ -112,6 +114,7 @@ pipeline_transcribe <- function(
   logprob_threshold = -1.0,
   length_penalty = 1.0,
   patience = Inf,
+  jit = TRUE,
   verbose = TRUE
 ) {
   if (!file.exists(file)) stop("Audio file not found: ", file)
@@ -131,7 +134,7 @@ pipeline_transcribe <- function(
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
       length_penalty = length_penalty, patience = patience,
-      device = pipe$device, dtype = pipe$dtype, verbose = verbose)
+      jit = jit, device = pipe$device, dtype = pipe$dtype, verbose = verbose)
   } else {
     result <- transcribe_long(file, pipe$model, pipe$tokenizer, pipe$config,
       language = language, task = task, timestamps = timestamps,
@@ -141,7 +144,7 @@ pipeline_transcribe <- function(
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
       length_penalty = length_penalty, patience = patience,
-      device = pipe$device, dtype = pipe$dtype, verbose = verbose)
+      jit = jit, device = pipe$device, dtype = pipe$dtype, verbose = verbose)
   }
 
   result$model <- pipe$config$model_name
@@ -172,6 +175,10 @@ pipeline_transcribe <- function(
 #' @param logprob_threshold Min average log probability before fallback.
 #' @param length_penalty Length penalty exponent for beam search scoring.
 #' @param patience Patience factor for beam search (stop after patience*beam_size).
+#' @param jit On CUDA, run greedy decoding via a TorchScript decode step
+#'   (default TRUE). Token-for-token equivalent to the eager path but
+#'   avoids the per-op R dispatch floor. No effect on CPU, beam search, or
+#'   word-timestamp runs, which use the eager decoder.
 #' @param device Device: "auto", "cpu", "cuda"
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param verbose Print progress messages
@@ -218,6 +225,7 @@ transcribe <- function(
   logprob_threshold = -1.0,
   length_penalty = 1.0,
   patience = Inf,
+  jit = TRUE,
   device = "auto",
   dtype = "auto",
   verbose = TRUE
@@ -230,7 +238,7 @@ transcribe <- function(
     best_of = best_of,
     compression_ratio_threshold = compression_ratio_threshold,
     logprob_threshold = logprob_threshold,
-    length_penalty = length_penalty, patience = patience,
+    length_penalty = length_penalty, patience = patience, jit = jit,
     verbose = verbose)
 }
 
@@ -251,6 +259,7 @@ transcribe <- function(
 #' @param logprob_threshold Min average log probability before fallback.
 #' @param length_penalty Length penalty exponent for beam search.
 #' @param patience Patience factor for beam search.
+#' @param jit Use the TorchScript greedy decode step on CUDA.
 #' @param time_offset Time offset in seconds for chunk processing.
 #' @param device Device
 #' @param dtype Dtype
@@ -272,6 +281,7 @@ transcribe_chunk <- function(
   logprob_threshold = -1.0,
   length_penalty = 1.0,
   patience = Inf,
+  jit = TRUE,
   time_offset = 0,
   device,
   dtype,
@@ -351,7 +361,7 @@ transcribe_chunk <- function(
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
       length_penalty = length_penalty, patience = patience,
-      device = device)
+      jit = jit, device = device)
 
     generated <- decode_result$tokens
     all_generated <- c(all_generated, generated)
@@ -680,6 +690,7 @@ apply_timestamp_rules <- function(
 #' @param logprob_threshold Min average log probability before fallback.
 #' @param length_penalty Length penalty exponent for beam search.
 #' @param patience Patience factor for beam search.
+#' @param jit Use the TorchScript greedy decode step on CUDA.
 #' @param device Device
 #' @param dtype Dtype
 #' @param verbose Verbose
@@ -700,6 +711,7 @@ transcribe_long <- function(
   logprob_threshold = -1.0,
   length_penalty = 1.0,
   patience = Inf,
+  jit = TRUE,
   device,
   dtype,
   verbose
@@ -741,7 +753,7 @@ transcribe_long <- function(
       best_of = best_of,
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
-      length_penalty = length_penalty, patience = patience,
+      length_penalty = length_penalty, patience = patience, jit = jit,
       time_offset = time_offset,
       device = device, dtype = dtype, verbose = FALSE)
 
@@ -1385,6 +1397,7 @@ beam_search_decode <- function(
 #' @param logprob_threshold Min average log probability
 #' @param length_penalty Length penalty for beam search
 #' @param patience Patience factor for beam search
+#' @param jit Use the TorchScript greedy decode step on CUDA (default TRUE).
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 decode_with_fallback <- function(
@@ -1402,8 +1415,13 @@ decode_with_fallback <- function(
   logprob_threshold = -1.0,
   length_penalty = 1.0,
   patience = Inf,
+  jit = TRUE,
   device
 ) {
+  # The TorchScript decode step is greedy-only and does not collect
+  # cross-attention weights; restrict it to the CUDA greedy path (the one
+  # that benefits and is verified). Eager elsewhere (incl. CPU checks).
+  use_jit <- jit && device$type == "cuda" && !word_timestamps
   for (temp in temperatures) {
     if (temp == 0) {
       if (beam_size > 1L) {
@@ -1412,6 +1430,12 @@ decode_with_fallback <- function(
           beam_size = beam_size, max_length = max_length,
           timestamps = timestamps, word_timestamps = word_timestamps,
           length_penalty = length_penalty, patience = patience,
+          device = device)
+      } else if (use_jit) {
+        decode_result <- greedy_decode_jit(model, encoder_output,
+          initial_tokens, tokenizer,
+          max_length = max_length,
+          timestamps = timestamps,
           device = device)
       } else {
         decode_result <- greedy_decode(model, encoder_output,

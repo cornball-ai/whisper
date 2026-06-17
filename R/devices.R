@@ -89,3 +89,100 @@ parse_dtype <- function(
   }
 }
 
+#' Tune torch's CUDA garbage collection for whisper inference
+#'
+#' Opt-in performance helper. torch's CUDA allocator invokes R's \code{gc()}
+#' on nearly every allocation once a loaded model occupies more than 20\% of
+#' GPU memory (its default \code{torch.cuda_allocator_reserved_rate} floor),
+#' which can dominate inference time for the larger whisper models. This raises
+#' the floor to the model's footprint as a fraction of VRAM (clamped to at
+#' least 0.2, so models already under the default are unaffected) and lifts
+#' \code{torch.threshold_call_gc} off its 4 GB default.
+#'
+#' @details
+#' Call this \emph{before} \code{\link{load_whisper_model}}: torch reads the
+#' allocator rates once, at lazy CUDA initialization. It is a no-op on
+#' non-CUDA devices and only sets an option that is not already set, so an
+#' explicit \code{options(torch.cuda_allocator_reserved_rate = ...)} always
+#' wins.
+#'
+#' \strong{Side effect:} it sets session-global \code{torch.*} options that
+#' persist after the call - deliberately, since torch reads them later. The
+#' package never calls this for you; you invoke it.
+#'
+#' For several models resident on one GPU in the \emph{same} R process, pass
+#' their combined size via \code{footprint_gb} so the single shared floor
+#' covers all of them.
+#'
+#' @param model Whisper model name, used to estimate the footprint when
+#'   \code{footprint_gb} is NULL.
+#' @param device Device, as accepted by \code{\link{load_whisper_model}}.
+#' @param dtype Compute dtype; determines bytes per parameter.
+#' @param footprint_gb Optional explicit footprint in GB, overriding the
+#'   per-model estimate (use for combined multi-model workloads).
+#' @return The reserved-rate that was set (invisibly), or NULL when nothing
+#'   was set (non-CUDA device, or the option was already set).
+#' @examples
+#' # No-op off CUDA; returns NULL.
+#' whisper_tune_gc("large-v3", device = "cpu")
+#' \dontrun{
+#' # On a GPU, call before loading so torch picks up the rate at CUDA init:
+#' whisper_tune_gc("large-v3", device = "cuda")
+#' model <- load_whisper_model("large-v3", device = "cuda")
+#' }
+#' @export
+whisper_tune_gc <- function(model = "large-v3", device = "auto",
+                            dtype = "auto", footprint_gb = NULL) {
+  device <- parse_device(device)
+  if (!inherits(device, "torch_device") || device$type != "cuda") {
+    return(invisible(NULL))
+  }
+  if (is.null(getOption("torch.threshold_call_gc"))) {
+    options(torch.threshold_call_gc = 16000)
+  }
+  if (!is.null(getOption("torch.cuda_allocator_reserved_rate"))) {
+    return(invisible(NULL))
+  }
+  if (is.null(footprint_gb)) {
+    dtype <- parse_dtype(dtype, device)
+    el_bytes <- tryCatch(torch::torch_empty(1L, dtype = dtype)$element_size(),
+      error = function(e) 4)
+    footprint_gb <- .whisper_param_count(model) * el_bytes / 1e9
+  }
+  idx <- device$index
+  if (is.null(idx) || is.na(idx)) {
+    idx <- 0L
+  }
+  total_gb <- tryCatch(
+    as.numeric(system2("nvidia-smi",
+      c("--query-gpu=memory.total", "--format=csv,noheader,nounits",
+        paste0("--id=", idx)), stdout = TRUE)[1]) / 1024,
+    error = function(e) NA_real_)
+  if (is.na(total_gb) || total_gb <= 0 ||
+      is.na(footprint_gb) || footprint_gb <= 0) {
+    return(invisible(NULL))
+  }
+  rate <- min(0.92, max(0.20, footprint_gb / total_gb))
+  options(torch.cuda_allocator_reserved_rate = rate)
+  message(sprintf(paste0("whisper: torch.cuda_allocator_reserved_rate = %.2f,",
+    " threshold_call_gc = %d MB (%.1f GB model, %.0f GB VRAM)"),
+    rate, getOption("torch.threshold_call_gc"), footprint_gb, total_gb))
+  invisible(rate)
+}
+
+# Approximate parameter count per whisper model, for the GC footprint estimate.
+.whisper_param_count <- function(model) {
+  m <- sub("\\.en$", "", tolower(model))
+  switch(m,
+    tiny = 39e6,
+    base = 74e6,
+    small = 244e6,
+    medium = 769e6,
+    "large-v3-turbo" = 809e6,
+    "large" = 1550e6,
+    "large-v1" = 1550e6,
+    "large-v2" = 1550e6,
+    "large-v3" = 1550e6,
+    1550e6)
+}
+

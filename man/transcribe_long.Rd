@@ -7,7 +7,8 @@ transcribe_long(file, model, tokenizer, config, language, task,
                 timestamps = FALSE, word_timestamps = FALSE, beam_size = 1L,
                 temperatures = 0, best_of = 1L,
                 compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                length_penalty = 1, patience = Inf, device, dtype, verbose)
+                length_penalty = 1, patience = Inf, jit = TRUE, device, dtype,
+                verbose)
 }
 \arguments{
 \item{file}{Audio file}
@@ -39,6 +40,8 @@ transcribe_long(file, model, tokenizer, config, language, task,
 \item{length_penalty}{Length penalty exponent for beam search.}
 
 \item{patience}{Patience factor for beam search.}
+
+\item{jit}{Use the TorchScript greedy decode step on CUDA.}
 
 \item{device}{Device}
 

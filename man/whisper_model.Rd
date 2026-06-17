@@ -1,7 +1,7 @@
 % tinyrox says don't edit this manually, but it can't stop you!
 \name{whisper_model}
 \alias{whisper_model}
-\title{Whisper Model}
+\title{Whisper Model Module}
 \usage{
 whisper_model(config)
 }
@@ -9,6 +9,5 @@ whisper_model(config)
 \item{config}{Model configuration}
 }
 \description{
-Full Whisper model combining encoder and decoder.
 Whisper Model Module
 }

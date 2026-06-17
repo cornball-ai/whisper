@@ -7,7 +7,8 @@ pipeline_transcribe(pipe, file, language = NULL, task = "transcribe",
                     timestamps = FALSE, word_timestamps = FALSE,
                     beam_size = 1L, temperatures = 0, best_of = 1L,
                     compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                    length_penalty = 1, patience = Inf, verbose = TRUE)
+                    length_penalty = 1, patience = Inf, jit = TRUE,
+                    verbose = TRUE)
 }
 \arguments{
 \item{pipe}{A whisper_pipeline object.}
@@ -35,6 +36,8 @@ pipeline_transcribe(pipe, file, language = NULL, task = "transcribe",
 \item{length_penalty}{Length penalty exponent for beam search.}
 
 \item{patience}{Patience factor for beam search.}
+
+\item{jit}{Use the TorchScript greedy decode step on CUDA.}
 
 \item{verbose}{Print progress.}
 }

@@ -1,7 +1,7 @@
 % tinyrox says don't edit this manually, but it can't stop you!
 \name{whisper_pipeline}
 \alias{whisper_pipeline}
-\title{Whisper Transcription}
+\title{Create a Whisper Pipeline}
 \usage{
 whisper_pipeline(model = "tiny", device = "auto", dtype = "auto",
                  download = TRUE, verbose = TRUE)
@@ -21,8 +21,6 @@ whisper_pipeline(model = "tiny", device = "auto", dtype = "auto",
 A \code{whisper_pipeline} object with a \code{$transcribe()} method.
 }
 \description{
-Main transcription API for Whisper.
-Create a Whisper Pipeline
 Load the model, tokenizer, and config once. Call \code{$transcribe()}
 repeatedly without reloading.
 }
