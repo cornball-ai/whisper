@@ -1418,10 +1418,11 @@ decode_with_fallback <- function(
   jit = TRUE,
   device
 ) {
-  # The TorchScript decode step is greedy-only and does not collect
-  # cross-attention weights; restrict it to the CUDA greedy path (the one
-  # that benefits and is verified). Eager elsewhere (incl. CPU checks).
-  use_jit <- jit && device$type == "cuda" && !word_timestamps
+  # The TorchScript decode step is greedy-only; restrict it to the CUDA
+  # greedy path (the one that benefits and is verified). The cross-attn
+  # variant collects weights, so it also serves word timestamps. Eager
+  # elsewhere (beam search, CPU checks).
+  use_jit <- jit && device$type == "cuda"
   for (temp in temperatures) {
     if (temp == 0) {
       if (beam_size > 1L) {
@@ -1436,6 +1437,7 @@ decode_with_fallback <- function(
           initial_tokens, tokenizer,
           max_length = max_length,
           timestamps = timestamps,
+          word_timestamps = word_timestamps,
           device = device)
       } else {
         decode_result <- greedy_decode(model, encoder_output,

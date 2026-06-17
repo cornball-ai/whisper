@@ -1,3 +1,11 @@
+# whisper 0.3.0.4 (development)
+
+* The JIT decode path now supports word timestamps. A cross-attention-weight
+  variant of the TorchScript decode step (manual-softmax cross-attention,
+  SDPA self-attention) exposes the per-layer weights that DTW word alignment
+  needs, so `word_timestamps = TRUE` no longer forces the eager decoder on
+  CUDA. Verified token-for-token and timestamp-for-timestamp against eager.
+
 # whisper 0.3.0.3 (development)
 
 * `whisper_dtype()` now falls back to float32 on the GTX 16-series

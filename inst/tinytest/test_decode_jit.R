@@ -41,4 +41,26 @@ if (at_home() &&
     max_length = cfg$n_text_ctx, timestamps = TRUE, device = dev)
   expect_identical(jit_ts$tokens, eager_ts$tokens,
     info = "jit greedy decode matches eager (timestamps)")
+
+  # Word timestamps: the cross-attn-weight JIT variant must produce the same
+  # tokens and the same per-step cross-attention as the eager need_weights path.
+  eager_w <- whisper:::greedy_decode(model, enc, init_t, tok,
+    max_length = cfg$n_text_ctx, timestamps = FALSE, word_timestamps = TRUE,
+    device = dev)
+  jit_w <- whisper:::greedy_decode_jit(model, enc, init_t, tok,
+    max_length = cfg$n_text_ctx, timestamps = FALSE, word_timestamps = TRUE,
+    device = dev)
+  expect_identical(jit_w$tokens, eager_w$tokens,
+    info = "jit word-path tokens match eager")
+  expect_equal(length(jit_w$cross_attn_weights),
+    length(eager_w$cross_attn_weights),
+    info = "jit collects the same number of cross-attn steps")
+  sb <- length(init)
+  we <- whisper:::compute_word_timestamps(eager_w$tokens,
+    eager_w$cross_attn_weights, tok, cfg, sample_begin = sb)
+  wj <- whisper:::compute_word_timestamps(jit_w$tokens,
+    jit_w$cross_attn_weights, tok, cfg, sample_begin = sb)
+  expect_identical(wj$word, we$word, info = "jit word timestamps: same words")
+  expect_true(max(abs(wj$start - we$start)) < 0.05,
+    info = "jit word start times match eager")
 }
