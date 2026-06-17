@@ -1,0 +1,47 @@
+# Example systemd unit for whisper::serve().
+#
+# Serves a whisper STT model over HTTP as a persistent service (model
+# loaded once, auto-restart on failure, starts on boot). Copy this file from
+#   system.file("whisper.service", package = "whisper")
+# edit the CHANGEME placeholders, then install:
+#
+#   sudo cp whisper.service /etc/systemd/system/whisper.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now whisper.service
+#   journalctl -u whisper.service -f       # watch it load + warm up
+#
+# Restart after a package update:  sudo systemctl restart whisper
+#
+# Co-residence: on a small GPU this is meant to sit alongside the chatterbox
+# TTS server as a second always-on process (each has its own CUDA context and
+# tunes its own allocator GC). On a 6 GB card, pair the whisper "small" model
+# with chatterbox turbo to stay within the memory budget.
+#
+# Point a client at it via stt.api:
+#   stt.api::set_stt_base("http://<host>:4123")
+
+[Unit]
+Description=Whisper STT server (R package, base-socket HTTP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# The user that owns the R library and model cache:
+User=CHANGEME
+Group=CHANGEME
+WorkingDirectory=/home/CHANGEME
+# littler (/usr/bin/r) does not read ~/.Renviron/.Rprofile, so set what the
+# server needs explicitly:
+Environment=HOME=/home/CHANGEME
+# Model + port. "small" co-resides with a chatterbox server on a 6 GB card;
+# use "large-v3" on a card with room to spare.
+ExecStart=/usr/bin/r -e "whisper::serve(model = 'small', port = 4123L)"
+Restart=on-failure
+RestartSec=5
+# Model load + decode-step compile + warmup take a while; don't let a
+# watchdog kill startup.
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target
