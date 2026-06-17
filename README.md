@@ -107,6 +107,39 @@ result <- pipe$transcribe("audio.wav", word_timestamps = TRUE)
 result$words
 ```
 
+## Serving
+
+`serve()` runs an OpenAI-compatible STT server that loads the model once and
+keeps it resident, so a client (or [`{stt.api}`](https://github.com/cornball-ai/stt.api))
+can transcribe over HTTP:
+
+```r
+whisper::serve(model = "small", port = 7809L)
+```
+
+```bash
+curl -X POST http://localhost:7809/v1/audio/transcriptions \
+  -F file=@speech.wav -F response_format=verbose_json
+```
+
+Endpoints: `GET /health`, `POST /v1/audio/transcriptions`, `POST /v1/audio/translations`.
+It's built on base R sockets (no extra dependencies). A systemd unit ships in
+`system.file("whisper.service", package = "whisper")`.
+
+## Performance and hardware notes
+
+- **JIT decode (CUDA).** Greedy decoding runs each token's decoder forward as a
+  single TorchScript call (`jit = TRUE`, the default on CUDA) instead of dozens
+  of per-op R calls, several times faster than the eager path and equivalent
+  token-for-token. Beam search and word-timestamp runs use the eager decoder.
+- **GTX 16-series fp16 is broken.** The GTX 1630/1650/1660 (TU116/TU117) compute
+  fp16 incorrectly and return NaN (transcription comes out as repeated `!`).
+  `whisper_dtype()` auto-falls back to float32 on those cards; pass
+  `dtype = "float16"` to override.
+- **`whisper_tune_gc()`** is an opt-in helper that tunes torch's CUDA allocator
+  GC. It is largely inert for whisper (whisper is dispatch-bound, not
+  GC-bound — JIT is the lever); it's kept as cheap insurance.
+
 ## Models
 
 | Model | Parameters | Disk (fp32) | English WER | Peak VRAM (CUDA fp16) | Speed* |
@@ -117,8 +150,10 @@ result$words
 | medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 8.6s |
 | large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 16.7s |
 
-*Speed measured on RTX 5060 Ti transcribing a 17s audio clip with `word_timestamps = TRUE`.
-Peak VRAM includes ~364 MiB torch CUDA context overhead.
+*Speed measured on RTX 5060 Ti transcribing a 17s clip with
+`word_timestamps = TRUE`, which uses the eager decoder. The default greedy path
+uses the JIT decoder on CUDA and is several times faster (e.g. large-v3 ~1s for
+a 19s clip). Peak VRAM includes ~364 MiB torch CUDA context overhead.
 
 Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
