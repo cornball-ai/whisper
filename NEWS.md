@@ -1,3 +1,17 @@
+# whisper 0.3.0.2 (development)
+
+* New `serve()`: a single-process HTTP server exposing the model over an
+  OpenAI-compatible `POST /v1/audio/transcriptions` (and `/translations`)
+  endpoint, plus `GET /health`. Built on base R sockets (no new
+  dependencies), it loads the model once and keeps it resident, so it
+  drops in for the OpenAI API or a Whisper container - point `stt.api` at
+  it with `set_stt_base()`. Multipart/form-data uploads are parsed in
+  base R; responses are `text`, `json`, or `verbose_json` (with segment
+  timings). On CUDA it tunes the allocator GC and uses the TorchScript
+  decode step. An example systemd unit ships in
+  `system.file("whisper.service", package = "whisper")`, set up to run as
+  a second always-on process alongside a chatterbox TTS server.
+
 # whisper 0.3.0.1 (development)
 
 * Greedy decoding on CUDA now runs each token's decoder forward (all
