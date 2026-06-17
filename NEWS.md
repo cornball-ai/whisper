@@ -1,3 +1,13 @@
+# whisper 0.3.0.3 (development)
+
+* `whisper_dtype()` now falls back to float32 on the GTX 16-series
+  (TU116/TU117: GTX 1630/1650/1660 and Ti/Super variants), which compute
+  fp16 incorrectly and produce NaN (seen as repeated "!" tokens in
+  transcription). Detection is by GPU name, CUDA-gated and tryCatch-guarded
+  (dormant on non-CUDA/CRAN machines). Pass `dtype = "float16"` to override.
+  This makes `transcribe()`/`whisper_pipeline()`/`serve()` produce correct
+  output on these cards by default.
+
 # whisper 0.3.0.2 (development)
 
 * New `serve()`: a single-process HTTP server exposing the model over an
