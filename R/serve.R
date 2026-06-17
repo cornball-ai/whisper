@@ -44,7 +44,8 @@
 #' On CUDA it tunes torch's allocator GC (see \code{\link{whisper_tune_gc}})
 #' before loading and uses the TorchScript greedy decode step.
 #'
-#' @param port Integer. TCP port to listen on. Default 4123.
+#' @param port Integer. TCP port to listen on. Default 7809 (the cornball
+#'   serve range is 7809-7829; chatterbox sits on 7810).
 #' @param model Model name to load and keep resident (the request's
 #'   \code{model} field is ignored). Default "large-v3".
 #' @param device Character. Torch device ("cuda", "cpu", "mps").
@@ -58,7 +59,7 @@
 #'   request isn't slow. Default TRUE.
 #' @return Does not return normally; runs until interrupted.
 #' @export
-serve <- function(port = 4123L, model = "large-v3", device = "cuda",
+serve <- function(port = 7809L, model = "large-v3", device = "cuda",
                   dtype = "auto", timeout = 300L,
                   max_body = 100L * 1024L ^ 2, warmup = TRUE) {
   # Tune the CUDA allocator GC before the first CUDA op (no-op off CUDA).

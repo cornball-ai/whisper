@@ -17,8 +17,12 @@
 # tunes its own allocator GC). On a 6 GB card, pair the whisper "small" model
 # with chatterbox turbo to stay within the memory budget.
 #
+# Port 7809 is the bottom of the cornball serve range (7809-7829), next to
+# chatterbox on 7810 and qwen3 TTS on 7811. (4123 is the chatterbox Python
+# container, so don't reuse it.)
+#
 # Point a client at it via stt.api:
-#   stt.api::set_stt_base("http://<host>:4123")
+#   stt.api::set_stt_base("http://<host>:7809")
 
 [Unit]
 Description=Whisper STT server (R package, base-socket HTTP)
@@ -36,7 +40,7 @@ WorkingDirectory=/home/CHANGEME
 Environment=HOME=/home/CHANGEME
 # Model + port. "small" co-resides with a chatterbox server on a 6 GB card;
 # use "large-v3" on a card with room to spare.
-ExecStart=/usr/bin/r -e "whisper::serve(model = 'small', port = 4123L)"
+ExecStart=/usr/bin/r -e "whisper::serve(model = 'small', port = 7809L)"
 Restart=on-failure
 RestartSec=5
 # Model load + decode-step compile + warmup take a while; don't let a

@@ -3,11 +3,12 @@
 \alias{serve}
 \title{Serve whisper over HTTP}
 \usage{
-serve(port = 4123L, model = "large-v3", device = "cuda", dtype = "auto",
+serve(port = 7809L, model = "large-v3", device = "cuda", dtype = "auto",
       timeout = 300L, max_body = 100L * 1024L^2, warmup = TRUE)
 }
 \arguments{
-\item{port}{Integer. TCP port to listen on. Default 4123.}
+\item{port}{Integer. TCP port to listen on. Default 7809 (the cornball
+serve range is 7809-7829; chatterbox sits on 7810).}
 
 \item{model}{Model name to load and keep resident (the request's
 \code{model} field is ignored). Default "large-v3".}
