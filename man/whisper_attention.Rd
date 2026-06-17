@@ -1,7 +1,7 @@
 % tinyrox says don't edit this manually, but it can't stop you!
 \name{whisper_attention}
 \alias{whisper_attention}
-\title{Whisper Encoder}
+\title{Multi-Head Self-Attention}
 \usage{
 whisper_attention(n_state, n_head)
 }
@@ -11,6 +11,5 @@ whisper_attention(n_state, n_head)
 \item{n_head}{Number of attention heads}
 }
 \description{
-Transformer encoder for processing mel spectrograms.
 Multi-Head Self-Attention
 }

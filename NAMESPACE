@@ -14,6 +14,7 @@ export(whisper_device)
 export(whisper_dtype)
 export(whisper_pipeline)
 export(whisper_tokenizer)
+export(whisper_tune_gc)
 
 S3method(print,whisper_pipeline)
 

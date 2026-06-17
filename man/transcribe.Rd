@@ -7,7 +7,7 @@ transcribe(file, model = "tiny", language = NULL, task = "transcribe",
            timestamps = FALSE, word_timestamps = FALSE, beam_size = 1L,
            temperatures = 0, best_of = 1L, compression_ratio_threshold = 2.4,
            logprob_threshold = -1, length_penalty = 1, patience = Inf,
-           device = "auto", dtype = "auto", verbose = TRUE)
+           jit = TRUE, device = "auto", dtype = "auto", verbose = TRUE)
 }
 \arguments{
 \item{file}{Path to audio file (WAV, MP3, etc.)}
@@ -38,6 +38,11 @@ or greedy; values > 0 use sampling. Multiple values enable fallback.}
 
 \item{patience}{Patience factor for beam search (stop after patience*beam_size).}
 
+\item{jit}{On CUDA, run greedy decoding via a TorchScript decode step
+(default TRUE). Token-for-token equivalent to the eager path but
+avoids the per-op R dispatch floor. No effect on CPU, beam search, or
+word-timestamp runs, which use the eager decoder.}
+
 \item{device}{Device: "auto", "cpu", "cuda"}
 
 \item{dtype}{Data type: "auto", "float16", "float32"}
@@ -52,8 +57,11 @@ List with text, language, and metadata. When \code{timestamps=TRUE},
 }
 \description{
 Transcribe speech from an audio file using Whisper.
+}
+\details{
 For repeated transcription, use \code{\link{whisper_pipeline}()} to
 load the model once.
+
 }
 \examples{
 \donttest{

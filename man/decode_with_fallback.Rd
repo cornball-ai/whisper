@@ -8,7 +8,7 @@ decode_with_fallback(model, encoder_output, initial_tokens, tokenizer,
                      beam_size = 5L, best_of = 5L, max_length = 448L,
                      timestamps = FALSE, word_timestamps = FALSE,
                      compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                     length_penalty = 1, patience = Inf, device)
+                     length_penalty = 1, patience = Inf, jit = TRUE, device)
 }
 \arguments{
 \item{model}{WhisperModel}
@@ -38,6 +38,8 @@ decode_with_fallback(model, encoder_output, initial_tokens, tokenizer,
 \item{length_penalty}{Length penalty for beam search}
 
 \item{patience}{Patience factor for beam search}
+
+\item{jit}{Use the TorchScript greedy decode step on CUDA (default TRUE).}
 
 \item{device}{Device}
 }

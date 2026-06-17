@@ -1,3 +1,25 @@
+# whisper 0.3.0.1 (development)
+
+* Greedy decoding on CUDA now runs each token's decoder forward (all
+  layers' self-attention, cross-attention, and FFN, plus the final
+  LayerNorm) as one `jit_compile`'d TorchScript call, instead of dozens
+  of dispatched R->torch calls per token. Same motivation as chatterbox's
+  `t3_inference_jit`: even lean eager R hits a per-op dispatch floor, and
+  collapsing the per-token forward into one libtorch call removes it
+  without compiled code. Token-for-token equivalent to the eager path
+  (verified in `test_decode_jit.R`); ~2.5x faster end-to-end on `medium`
+  for a short clip, more on longer transcripts. On by default via the new
+  `jit` argument to `transcribe()`/`whisper_pipeline()`; pass `jit = FALSE`
+  to force the eager decoder. No effect on CPU, beam search, or
+  word-timestamp runs, which use the eager path.
+* New `whisper_tune_gc()`: opt-in helper that raises torch's CUDA
+  allocator GC floor (`torch.cuda_allocator_reserved_rate`) to the model's
+  footprint as a fraction of VRAM and lifts `torch.threshold_call_gc` off
+  its default, so GC stops firing on nearly every allocation during
+  inference. Call it before `load_whisper_model()`. No-op off CUDA and
+  only sets options that are not already set. See torch's memory-management
+  vignette.
+
 # whisper 0.3.0
 
 * Language auto-detection: `transcribe()` now defaults to `language = NULL`,

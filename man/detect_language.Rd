@@ -1,7 +1,7 @@
 % tinyrox says don't edit this manually, but it can't stop you!
 \name{detect_language}
 \alias{detect_language}
-\title{Language Detection}
+\title{Detect Language}
 \usage{
 detect_language(file, model = "tiny", device = "auto", dtype = "auto",
                 top_k = 5L, download = TRUE, verbose = TRUE)
@@ -26,8 +26,6 @@ List with \code{language} (two-letter code) and
   \code{probabilities} (named numeric vector of top-k language probs).
 }
 \description{
-Detect the spoken language in an audio file using Whisper.
-Detect Language
 Identify the spoken language in an audio file. Uses Whisper's decoder
 to predict the most likely language token from the first 30 seconds
 of audio.
