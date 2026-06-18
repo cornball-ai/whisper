@@ -45,9 +45,11 @@ Endpoints:
 \item \code{POST /v1/audio/transcriptions} - multipart/form-data with
 fields \code{file} (required audio upload), \code{language},
 \code{response_format} (\code{json} (default), \code{text}, or
-\code{verbose_json}), and \code{temperature}. Returns the
-transcription. \code{verbose_json} adds \code{segments} with
-start/end times.
+\code{verbose_json}), \code{temperature}, and
+\code{timestamp_granularities[]}. Returns the transcription.
+\code{verbose_json} adds \code{segments} with start/end times;
+adding \code{timestamp_granularities[]=word} also returns \code{words}
+with per-word start/end times.
 \item \code{POST /v1/audio/translations} - same, but translates to
 English (Whisper's translate task).
 }
