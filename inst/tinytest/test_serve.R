@@ -59,3 +59,18 @@ segs <- whisper:::.serve_segments(df)
 expect_equal(length(segs), 2L)
 expect_equal(segs[[2]]$start, 1.5)
 expect_identical(segs[[1]]$text, "a")
+
+# Array-style repeated field (timestamp_granularities[]=segment & =word) must
+# preserve both values, so a "word" granularity is never lost to ordering.
+dup <- c(charToRaw(paste0(
+  "--", boundary, crlf,
+  'Content-Disposition: form-data; name="timestamp_granularities[]"', crlf, crlf,
+  "segment", crlf,
+  "--", boundary, crlf,
+  'Content-Disposition: form-data; name="timestamp_granularities[]"', crlf, crlf,
+  "word", crlf,
+  "--", boundary, "--", crlf)))
+dparts <- whisper:::.serve_parse_multipart(dup, boundary)
+dval <- rawToChar(dparts[["timestamp_granularities[]"]]$value)
+expect_true(grepl("word", dval), info = "duplicate array field keeps 'word'")
+expect_true(grepl("segment", dval), info = "duplicate array field keeps 'segment'")

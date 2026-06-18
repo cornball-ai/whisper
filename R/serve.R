@@ -374,7 +374,14 @@ serve <- function(port = 7809L, model = "large-v3", device = "cuda",
     if (is.na(name)) {
       next
     }
-    parts[[name]] <- list(value = content, filename = filename)
+    if (!is.null(parts[[name]])) {
+      # Array-style field repeated (e.g. timestamp_granularities[]=segment and
+      # =word): keep all values, newline-separated, so a single rawToChar sees
+      # them all. (File parts never repeat.)
+      parts[[name]]$value <- c(parts[[name]]$value, charToRaw("\n"), content)
+    } else {
+      parts[[name]] <- list(value = content, filename = filename)
+    }
   }
   parts
 }
