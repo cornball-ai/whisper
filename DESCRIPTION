@@ -1,6 +1,6 @@
 Package: whisper
 Title: Native R 'torch' Implementation of 'OpenAI' 'Whisper'
-Version: 0.3.0.3
+Version: 0.3.0.4
 Authors@R: c(
     person("Troy", "Hernandez", role = c("aut", "cre"),
            email = "troy@cornball.ai",

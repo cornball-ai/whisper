@@ -28,9 +28,11 @@
 #'   \item \code{POST /v1/audio/transcriptions} - multipart/form-data with
 #'     fields \code{file} (required audio upload), \code{language},
 #'     \code{response_format} (\code{json} (default), \code{text}, or
-#'     \code{verbose_json}), and \code{temperature}. Returns the
-#'     transcription. \code{verbose_json} adds \code{segments} with
-#'     start/end times.
+#'     \code{verbose_json}), \code{temperature}, and
+#'     \code{timestamp_granularities[]}. Returns the transcription.
+#'     \code{verbose_json} adds \code{segments} with start/end times;
+#'     adding \code{timestamp_granularities[]=word} also returns \code{words}
+#'     with per-word start/end times.
 #'   \item \code{POST /v1/audio/translations} - same, but translates to
 #'     English (Whisper's translate task).
 #' }
@@ -275,9 +277,14 @@ serve <- function(port = 7809L, model = "large-v3", device = "cuda",
   language <- .serve_or(fld("language"), NULL)
   rf <- tolower(.serve_or(fld("response_format"), "json"))
   want_ts <- rf == "verbose_json"
+  # OpenAI's word granularity (timestamp_granularities[]=word, verbose_json
+  # only). Word timestamps imply segment timestamps.
+  gran <- tolower(paste(.serve_or(fld("timestamp_granularities[]"), ""),
+    .serve_or(fld("timestamp_granularities"), "")))
+  want_word <- want_ts && grepl("word", gran, fixed = TRUE)
 
   args <- list(file = tmp, task = task, language = language,
-    timestamps = want_ts, verbose = FALSE)
+    timestamps = want_ts, word_timestamps = want_word, verbose = FALSE)
   temp <- suppressWarnings(as.numeric(.serve_or(fld("temperature"), "")))
   if (length(temp) == 1L && !is.na(temp)) {
     args$temperatures <- temp
@@ -295,6 +302,9 @@ serve <- function(port = 7809L, model = "large-v3", device = "cuda",
     obj$task <- task
     obj$duration <- res$duration
     obj$segments <- .serve_segments(res$segments)
+  }
+  if (want_word) {
+    obj$words <- .serve_words(res$words)
   }
   .serve_json(obj)
 }
@@ -364,7 +374,14 @@ serve <- function(port = 7809L, model = "large-v3", device = "cuda",
     if (is.na(name)) {
       next
     }
-    parts[[name]] <- list(value = content, filename = filename)
+    if (!is.null(parts[[name]])) {
+      # Array-style field repeated (e.g. timestamp_granularities[]=segment and
+      # =word): keep all values, newline-separated, so a single rawToChar sees
+      # them all. (File parts never repeat.)
+      parts[[name]]$value <- c(parts[[name]]$value, charToRaw("\n"), content)
+    } else {
+      parts[[name]] <- list(value = content, filename = filename)
+    }
   }
   parts
 }
@@ -378,6 +395,17 @@ serve <- function(port = 7809L, model = "large-v3", device = "cuda",
   lapply(seq_len(nrow(segments)), function(i) {
     list(start = segments$start[i], end = segments$end[i],
       text = segments$text[i])
+  })
+}
+
+# Convert a words data.frame (word, start, end) to a list of records
+# (OpenAI verbose_json word granularity); empty -> [].
+.serve_words <- function(words) {
+  if (is.null(words) || nrow(words) == 0L) {
+    return(list())
+  }
+  lapply(seq_len(nrow(words)), function(i) {
+    list(word = words$word[i], start = words$start[i], end = words$end[i])
   })
 }
 
