@@ -368,7 +368,8 @@ transcribe_chunk <- function(
     # Decode
     decode_result <- decode_with_fallback(model, encoder_output, tokens,
       tokenizer, temperatures = temperatures, beam_size = beam_size,
-      best_of = best_of, max_length = config$n_text_ctx %/% 2L,
+      best_of = best_of,
+      max_length = config$n_text_ctx %/% 2L + length(initial_tokens),
       timestamps = internal_timestamps, word_timestamps = word_timestamps,
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
