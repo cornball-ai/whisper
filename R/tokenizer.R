@@ -50,6 +50,18 @@ whisper_tokenizer <- function(model = "tiny") {
   # Get special tokens (using model-specific IDs)
   special <- whisper_special_tokens(model)
 
+  # Special-token strings -> ids, so encode_special() resolves them from the
+  # special table when vocab.json omits them (large-v3 has no <|endoftext|>).
+  special_strs <- c(
+    "<|endoftext|>" = special$eot,
+    "<|startoftranscript|>" = special$sot,
+    "<|translate|>" = special$translate,
+    "<|transcribe|>" = special$transcribe,
+    "<|startoflm|>" = special$sot_lm,
+    "<|startofprev|>" = special$sot_prev,
+    "<|nospeech|>" = special$no_speech,
+    "<|notimestamps|>" = special$no_timestamps)
+
   enc <- function(text) tokenizer_encode(text, vocab, merge_ranks, special$eot)
   # Decode-time logit suppression sets, computed once (see R/suppress.R).
   suppress_tokens <- .decode_suppress_ids(enc, special)
@@ -65,7 +77,14 @@ whisper_tokenizer <- function(model = "tiny") {
       model = model,
       encode = enc,
       decode = function(ids) tokenizer_decode(ids, id_to_token, special),
-      encode_special = function(token) vocab[[token]],
+      encode_special = function(token) {
+        v <- vocab[[token]]
+        if (is.null(v) && token %in% names(special_strs)) {
+          special_strs[[token]]
+        } else {
+          v
+        }
+      },
       n_vocab = length(vocab),
       suppress_tokens = suppress_tokens,
       blank_tokens = blank_tokens

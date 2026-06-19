@@ -6,7 +6,7 @@ if (at_home() &&
     requireNamespace("torch", quietly = TRUE) &&
     torch::torch_is_installed() &&
     torch::cuda_is_available() &&
-    whisper:::model_exists("tiny")) {
+    model_exists("tiny")) {
 
   dev <- torch::torch_device("cuda")
   dtype <- torch::torch_float16()

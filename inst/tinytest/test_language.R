@@ -18,7 +18,7 @@ for (code in names(langs)) {
 }
 
 # Integration tests (need model)
-if (at_home() && whisper::model_exists("tiny")) {
+if (at_home() && model_exists("tiny")) {
   audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
 
   # detect_language should return English for JFK speech

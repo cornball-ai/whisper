@@ -51,3 +51,15 @@ expect_equal(whisper:::decode_bpe_bytes(cjk_bpe), cjk_text)
 # Empty string
 expect_equal(whisper:::decode_bpe_bytes(""), "")
 
+# Regression (0.3.0.7): tokenizer_encode() must not crash when vocab.json omits
+# the <|endoftext|> key, as large-v3's does. Unmatched tokens fall back to the
+# supplied eot id, and the result is always an integer vector, never a list
+# (the bug returned a list, which as.integer() rejected).
+empty_merges <- setNames(integer(0), character(0))
+ids_fb <- whisper:::tokenizer_encode("ab", list(), empty_merges, eot_fallback = 99L)
+expect_true(is.integer(ids_fb))
+expect_equal(ids_fb, c(99L, 99L))                    # no key, no match -> eot fallback
+expect_equal(                                        # known token still resolves
+  whisper:::tokenizer_encode("a", list("a" = 5L), empty_merges, eot_fallback = 99L),
+  5L)
+
