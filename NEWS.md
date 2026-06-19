@@ -1,3 +1,13 @@
+# whisper 0.3.0.6
+
+* Bound and mitigate degenerate repetition loops, matching the reference. A
+  long non-speech sound (e.g. a laugh) could make the decoder emit one token
+  ("ha") hundreds of times - garbage output, and enough accumulated
+  cross-attention to exhaust memory on a small GPU. Decoding is now capped at
+  half the text context (the reference's `sample_len`) rather than the full
+  context, and the default `temperatures` enable the existing compression-ratio
+  fallback, which re-decodes too-repetitive output at a higher temperature.
+
 # whisper 0.3.0.5
 
 * Silence handling now matches the reference Whisper, fixing transcripts that
