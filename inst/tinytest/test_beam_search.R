@@ -80,7 +80,7 @@ if (requireNamespace("torch", quietly = TRUE) &&
 }
 
 # --- Integration tests (need model) ---
-if (tinytest::at_home() && whisper::model_exists("tiny")) {
+if (tinytest::at_home() && model_exists("tiny")) {
 
   audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
 

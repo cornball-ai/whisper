@@ -1,3 +1,11 @@
+# whisper 0.3.0.8
+
+* Add a regression test for `tokenizer_encode()` on a vocab missing the
+  `<|endoftext|>` key (the 0.3.0.7 large-v3 crash), so it cannot recur.
+* `encode_special()` now resolves the core special tokens from the
+  special-token table when `vocab.json` omits them, consistent with
+  `tokenizer_encode()`.
+
 # whisper 0.3.0.7
 
 * Fix `tokenizer_encode()` crashing for models whose `vocab.json` omits the
