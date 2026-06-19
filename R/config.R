@@ -122,14 +122,16 @@ whisper_special_tokens <- function(model = "tiny") {
   if (model == "large-v3") {
     list(
       sot = 50258L, eot = 50257L, translate = 50359L,
-      transcribe = 50360L, no_speech = 50363L,
+      transcribe = 50360L, sot_lm = 50361L, sot_prev = 50362L,
+      no_speech = 50363L,
       no_timestamps = 50364L, timestamp_begin = 50365L,
       lang_en = 50259L
     )
   } else {
     list(
       sot = 50258L, eot = 50257L, translate = 50358L,
-      transcribe = 50359L, no_speech = 50362L,
+      transcribe = 50359L, sot_lm = 50360L, sot_prev = 50361L,
+      no_speech = 50362L,
       no_timestamps = 50363L, timestamp_begin = 50364L,
       lang_en = 50259L
     )

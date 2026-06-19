@@ -1,59 +1,35 @@
-# whisper 0.3.0.4 (development)
+# whisper 0.3.0.5
 
-* The JIT decode path now supports word timestamps. A cross-attention-weight
-  variant of the TorchScript decode step (manual-softmax cross-attention,
-  SDPA self-attention) exposes the per-layer weights that DTW word alignment
-  needs, so `word_timestamps = TRUE` no longer forces the eager decoder on
-  CUDA. Verified token-for-token and timestamp-for-timestamp against eager.
-* `serve()` exposes word timestamps: pass `timestamp_granularities[]=word`
-  (with `response_format=verbose_json`) and the response includes a `words`
-  array with per-word start/end times.
-
-# whisper 0.3.0.3 (development)
-
+* Silence handling now matches the reference Whisper, fixing transcripts that
+  ran past the end of short audio. Three changes, ported from
+  `openai-whisper`: decoding suppresses non-speech tokens (brackets, music
+  notes, speaker tags) and control tokens at every step, so output no longer
+  contains `[BLANK_AUDIO]`/`[MUSIC PLAYING]`-style annotations; the seek loop
+  decodes only the real audio (`content_frames`), not the fixed 30s of mel
+  padding, so a 7s clip no longer trails off into hallucinated text up to 30s;
+  and a no-speech-probability gate skips windows that read as silence. The
+  special-token table gains `sot_lm` and `sot_prev`.
+* New `serve()`: a single-process, OpenAI-compatible HTTP STT server
+  (`POST /v1/audio/transcriptions` and `/translations`, `GET /health`) built
+  on base R sockets, with no new dependencies. It loads the model once and
+  keeps it resident, so it drops in for the OpenAI API or a Whisper container;
+  point `stt.api` at it with `set_stt_base()`. Returns `text`, `json`, or
+  `verbose_json` (segment timestamps, plus per-word timestamps when the request
+  includes `timestamp_granularities[]=word`). An example systemd unit ships in
+  `system.file("whisper.service", package = "whisper")`.
+* JIT decoding on CUDA: each generated token's decoder forward runs as one
+  `jit_compile`'d TorchScript call instead of dozens of dispatched R->torch
+  calls, several times faster end-to-end and token-for-token equivalent to the
+  eager path. Covers both greedy and word-timestamp decoding. On by default via
+  the new `jit` argument to `transcribe()`/`whisper_pipeline()`; pass
+  `jit = FALSE` for the eager decoder. No effect on CPU or beam search.
+* New `whisper_tune_gc()`: opt-in helper that tunes torch's CUDA allocator GC
+  rates for inference. No-op off CUDA, and only sets options that are unset.
 * `whisper_dtype()` now falls back to float32 on the GTX 16-series
-  (TU116/TU117: GTX 1630/1650/1660 and Ti/Super variants), which compute
-  fp16 incorrectly and produce NaN (seen as repeated "!" tokens in
-  transcription). Detection is by GPU name, CUDA-gated and tryCatch-guarded
-  (dormant on non-CUDA/CRAN machines). Pass `dtype = "float16"` to override.
-  This makes `transcribe()`/`whisper_pipeline()`/`serve()` produce correct
-  output on these cards by default.
-
-# whisper 0.3.0.2 (development)
-
-* New `serve()`: a single-process HTTP server exposing the model over an
-  OpenAI-compatible `POST /v1/audio/transcriptions` (and `/translations`)
-  endpoint, plus `GET /health`. Built on base R sockets (no new
-  dependencies), it loads the model once and keeps it resident, so it
-  drops in for the OpenAI API or a Whisper container - point `stt.api` at
-  it with `set_stt_base()`. Multipart/form-data uploads are parsed in
-  base R; responses are `text`, `json`, or `verbose_json` (with segment
-  timings). On CUDA it tunes the allocator GC and uses the TorchScript
-  decode step. An example systemd unit ships in
-  `system.file("whisper.service", package = "whisper")`, set up to run as
-  a second always-on process alongside a chatterbox TTS server.
-
-# whisper 0.3.0.1 (development)
-
-* Greedy decoding on CUDA now runs each token's decoder forward (all
-  layers' self-attention, cross-attention, and FFN, plus the final
-  LayerNorm) as one `jit_compile`'d TorchScript call, instead of dozens
-  of dispatched R->torch calls per token. Same motivation as chatterbox's
-  `t3_inference_jit`: even lean eager R hits a per-op dispatch floor, and
-  collapsing the per-token forward into one libtorch call removes it
-  without compiled code. Token-for-token equivalent to the eager path
-  (verified in `test_decode_jit.R`); ~2.5x faster end-to-end on `medium`
-  for a short clip, more on longer transcripts. On by default via the new
-  `jit` argument to `transcribe()`/`whisper_pipeline()`; pass `jit = FALSE`
-  to force the eager decoder. No effect on CPU, beam search, or
-  word-timestamp runs, which use the eager path.
-* New `whisper_tune_gc()`: opt-in helper that raises torch's CUDA
-  allocator GC floor (`torch.cuda_allocator_reserved_rate`) to the model's
-  footprint as a fraction of VRAM and lifts `torch.threshold_call_gc` off
-  its default, so GC stops firing on nearly every allocation during
-  inference. Call it before `load_whisper_model()`. No-op off CUDA and
-  only sets options that are not already set. See torch's memory-management
-  vignette.
+  (TU116/TU117: GTX 1630/1650/1660 and Ti/Super variants), which compute fp16
+  incorrectly and return NaN (seen as repeated "!" tokens). Detection is by GPU
+  name, CUDA-gated and tryCatch-guarded (dormant on non-CUDA/CRAN machines);
+  pass `dtype = "float16"` to override.
 
 # whisper 0.3.0
 

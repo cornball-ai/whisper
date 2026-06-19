@@ -8,7 +8,8 @@ decode_with_fallback(model, encoder_output, initial_tokens, tokenizer,
                      beam_size = 5L, best_of = 5L, max_length = 448L,
                      timestamps = FALSE, word_timestamps = FALSE,
                      compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                     length_penalty = 1, patience = Inf, jit = TRUE, device)
+                     no_speech_threshold = 0.6, length_penalty = 1,
+                     patience = Inf, jit = TRUE, device)
 }
 \arguments{
 \item{model}{WhisperModel}
@@ -34,6 +35,9 @@ decode_with_fallback(model, encoder_output, initial_tokens, tokenizer,
 \item{compression_ratio_threshold}{Max compression ratio}
 
 \item{logprob_threshold}{Min average log probability}
+
+\item{no_speech_threshold}{Skip a window as silence when its no-speech
+probability exceeds this and the decode is not confident.}
 
 \item{length_penalty}{Length penalty for beam search}
 
