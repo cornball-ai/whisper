@@ -668,34 +668,30 @@ apply_timestamp_rules <- function(
     }
   }
 
-  # Rule 2: After a closing timestamp (2 consecutive), next must be timestamp or EOT
-  if (n_consecutive_ts >= 2L && n_consecutive_ts %% 2L == 0L) {
-    # Suppress all text tokens, allow only timestamps and EOT
-    if (is_2d) {
-      # Suppress everything except EOT and timestamps
-      mask <- rep(-Inf, logits$size(2))
-      mask[special$eot + 1L] <- 0  # Allow EOT (1-indexed)
-      mask[(ts_begin + 1L):length(mask)] <- 0  # Allow timestamps
-      logits <- logits + torch::torch_tensor(matrix(mask, nrow = 1),
-        device = logits$device, dtype = logits$dtype)
-    } else {
-      mask <- rep(-Inf, logits$size(1))
-      mask[special$eot + 1L] <- 0
-      mask[(ts_begin + 1L):length(mask)] <- 0
-      logits <- logits + torch::torch_tensor(mask,
-        device = logits$device, dtype = logits$dtype)
-    }
-  }
-
-  # Rule 3: After a single timestamp (odd count), next must be non-timestamp (text)
-  if (n_consecutive_ts >= 1L && n_consecutive_ts %% 2L == 1L) {
-    # Suppress timestamps
+  # Rules 2/3: timestamps come in pairs, except directly before EOT (faithful to
+  # openai-whisper decoding.py). Decide from the last two content tokens:
+  #   - last and penultimate are both timestamps (a pair just closed) -> the
+  #     next token must be a non-timestamp, so suppress timestamps.
+  #   - last is a lone trailing timestamp -> the next token must be a timestamp
+  #     or EOT, so suppress text.
+  n_content <- length(content_tokens)
+  last_is_ts <- n_content >= 1L && content_tokens[n_content] >= ts_begin
+  penult_is_ts <- n_content < 2L || content_tokens[n_content - 1L] >= ts_begin
+  if (last_is_ts) {
     n_vocab <- if (is_2d) logits$size(2) else logits$size(1)
-    if (n_vocab > ts_begin) {
+    if (penult_is_ts) {
+      # force a non-timestamp: suppress all timestamp tokens
       if (is_2d) {
         logits[, (ts_begin + 1L):n_vocab] <- -Inf
       } else {
         logits[(ts_begin + 1L):n_vocab] <- -Inf
+      }
+    } else {
+      # force a timestamp or EOT: suppress text tokens [0, eot)
+      if (is_2d) {
+        logits[, 1:special$eot] <- -Inf
+      } else {
+        logits[1:special$eot] <- -Inf
       }
     }
   }
@@ -1582,7 +1578,8 @@ decode_with_fallback <- function(
     needs_fallback <- (cr > compression_ratio_threshold) ||
       (avg_logprob < logprob_threshold)
     if (!is.na(decode_result$no_speech_prob) &&
-        decode_result$no_speech_prob > no_speech_threshold) {
+        decode_result$no_speech_prob > no_speech_threshold &&
+        !is.na(avg_logprob) && avg_logprob < logprob_threshold) {
       needs_fallback <- FALSE
     }
     if (!needs_fallback) {
