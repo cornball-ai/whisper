@@ -38,10 +38,11 @@ or greedy; values > 0 use sampling. Multiple values enable fallback.}
 
 \item{patience}{Patience factor for beam search (stop after patience*beam_size).}
 
-\item{jit}{On CUDA, run greedy decoding via a TorchScript decode step
-(default TRUE). Token-for-token equivalent to the eager path but
-avoids the per-op R dispatch floor. No effect on CPU, beam search, or
-word-timestamp runs, which use the eager decoder.}
+\item{jit}{On CUDA, run decoding through a TorchScript decode step
+(default TRUE), covering both greedy and word-timestamp runs.
+Token-for-token equivalent to the eager path but avoids the per-op R
+dispatch floor. No effect on CPU or beam search, which use the eager
+decoder.}
 
 \item{device}{Device: "auto", "cpu", "cuda"}
 
