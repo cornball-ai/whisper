@@ -223,7 +223,7 @@ greedy_decode_jit <- function(
   encoder_output,
   initial_tokens,
   tokenizer,
-  max_length = 448L,
+  max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
   device

@@ -5,9 +5,10 @@
 \usage{
 transcribe(file, model = "tiny", language = NULL, task = "transcribe",
            timestamps = FALSE, word_timestamps = FALSE, beam_size = 1L,
-           temperatures = 0, best_of = 1L, compression_ratio_threshold = 2.4,
-           logprob_threshold = -1, length_penalty = 1, patience = Inf,
-           jit = TRUE, device = "auto", dtype = "auto", verbose = TRUE)
+           temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1), best_of = 1L,
+           compression_ratio_threshold = 2.4, logprob_threshold = -1,
+           length_penalty = 1, patience = Inf, jit = TRUE, device = "auto",
+           dtype = "auto", verbose = TRUE)
 }
 \arguments{
 \item{file}{Path to audio file (WAV, MP3, etc.)}
