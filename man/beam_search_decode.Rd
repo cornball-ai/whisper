@@ -4,7 +4,7 @@
 \title{Beam Search Decode}
 \usage{
 beam_search_decode(model, encoder_output, initial_tokens, tokenizer,
-                   beam_size = 5L, max_length = 448L, timestamps = FALSE,
+                   beam_size = 5L, max_length = 224L, timestamps = FALSE,
                    word_timestamps = FALSE, length_penalty = 1, patience = Inf,
                    device)
 }
