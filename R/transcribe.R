@@ -175,10 +175,11 @@ pipeline_transcribe <- function(
 #' @param logprob_threshold Min average log probability before fallback.
 #' @param length_penalty Length penalty exponent for beam search scoring.
 #' @param patience Patience factor for beam search (stop after patience*beam_size).
-#' @param jit On CUDA, run greedy decoding via a TorchScript decode step
-#'   (default TRUE). Token-for-token equivalent to the eager path but
-#'   avoids the per-op R dispatch floor. No effect on CPU, beam search, or
-#'   word-timestamp runs, which use the eager decoder.
+#' @param jit On CUDA, run decoding through a TorchScript decode step
+#'   (default TRUE), covering both greedy and word-timestamp runs.
+#'   Token-for-token equivalent to the eager path but avoids the per-op R
+#'   dispatch floor. No effect on CPU or beam search, which use the eager
+#'   decoder.
 #' @param device Device: "auto", "cpu", "cuda"
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param verbose Print progress messages

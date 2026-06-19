@@ -128,10 +128,11 @@ It's built on base R sockets (no extra dependencies). A systemd unit ships in
 
 ## Performance and hardware notes
 
-- **JIT decode (CUDA).** Greedy decoding runs each token's decoder forward as a
-  single TorchScript call (`jit = TRUE`, the default on CUDA) instead of dozens
-  of per-op R calls, several times faster than the eager path and equivalent
-  token-for-token. Beam search and word-timestamp runs use the eager decoder.
+- **JIT decode (CUDA).** Each token's decoder forward runs as a single
+  TorchScript call (`jit = TRUE`, the default on CUDA) instead of dozens of
+  per-op R calls, several times faster than the eager path and equivalent
+  token-for-token. Covers greedy and word-timestamp runs; beam search and CPU
+  use the eager decoder.
 - **GTX 16-series fp16 is broken.** The GTX 1630/1650/1660 (TU116/TU117) compute
   fp16 incorrectly and return NaN (transcription comes out as repeated `!`).
   `whisper_dtype()` auto-falls back to float32 on those cards; pass
@@ -151,9 +152,10 @@ It's built on base R sockets (no extra dependencies). A systemd unit ships in
 | large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 16.7s |
 
 *Speed measured on RTX 5060 Ti transcribing a 17s clip with
-`word_timestamps = TRUE`, which uses the eager decoder. The default greedy path
-uses the JIT decoder on CUDA and is several times faster (e.g. large-v3 ~1s for
-a 19s clip). Peak VRAM includes ~364 MiB torch CUDA context overhead.
+`word_timestamps = TRUE` (the heavier path; plain greedy is several times
+faster, e.g. large-v3 ~1s for a 19s clip). These predate word timestamps
+moving onto the JIT decoder, so they are conservative. Peak VRAM includes
+~364 MiB torch CUDA context overhead.
 
 Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
