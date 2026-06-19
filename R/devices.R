@@ -166,8 +166,12 @@ parse_dtype <- function(
 #' @return The reserved-rate that was set (invisibly), or NULL when nothing
 #'   was set (non-CUDA device, or the option was already set).
 #' @examples
-#' # No-op off CUDA; returns NULL.
-#' whisper_tune_gc("large-v3", device = "cpu")
+#' \donttest{
+#' if (torch::torch_is_installed()) {
+#'   # No-op off CUDA; returns NULL.
+#'   whisper_tune_gc("large-v3", device = "cpu")
+#' }
+#' }
 #' \dontrun{
 #' # On a GPU, call before loading so torch picks up the rate at CUDA init:
 #' whisper_tune_gc("large-v3", device = "cuda")

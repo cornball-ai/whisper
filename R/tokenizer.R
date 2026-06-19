@@ -50,6 +50,11 @@ whisper_tokenizer <- function(model = "tiny") {
   # Get special tokens (using model-specific IDs)
   special <- whisper_special_tokens(model)
 
+  enc <- function(text) tokenizer_encode(text, vocab, merge_ranks)
+  # Decode-time logit suppression sets, computed once (see R/suppress.R).
+  suppress_tokens <- .decode_suppress_ids(enc, special)
+  blank_tokens <- .blank_token_ids(enc, special)
+
   structure(
     list(
       vocab = vocab,
@@ -58,10 +63,12 @@ whisper_tokenizer <- function(model = "tiny") {
       merge_ranks = merge_ranks,
       special_tokens = special,
       model = model,
-      encode = function(text) tokenizer_encode(text, vocab, merge_ranks),
+      encode = enc,
       decode = function(ids) tokenizer_decode(ids, id_to_token, special),
       encode_special = function(token) vocab[[token]],
-      n_vocab = length(vocab)
+      n_vocab = length(vocab),
+      suppress_tokens = suppress_tokens,
+      blank_tokens = blank_tokens
     ),
     class = "whisper_tokenizer"
   )

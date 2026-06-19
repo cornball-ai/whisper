@@ -305,11 +305,10 @@ split_audio <- function(
     end <- min(start + chunk_samples - 1L, n_samples)
     chunk <- audio[start:end]
 
-    # Pad if necessary
-    if (length(chunk) < chunk_samples) {
-      chunk <- c(chunk, rep(0, chunk_samples - length(chunk)))
-    }
-
+    # Don't pad here. audio_to_mel() pads each chunk to 30s for the encoder
+    # anyway, and leaving the final chunk at its real length lets
+    # transcribe_chunk() bound its seek loop to content_frames - so the silent
+    # tail of a partial last chunk is never decoded in the first place.
     chunks <- c(chunks, list(chunk))
     start <- start + hop_samples
 

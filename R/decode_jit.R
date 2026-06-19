@@ -279,12 +279,24 @@ greedy_decode_jit <- function(
     }
 
     logits <- result$logits
+    no_speech_prob <- .no_speech_prob(logits, generated, special)
     next_logits <- logits[, logits$size(2), ]
+    # Suppression masks (SuppressTokens / SuppressBlank), same as the eager
+    # path so JIT and eager stay token-for-token equivalent.
+    nv <- next_logits$size(2)
+    supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv, device,
+      next_logits$dtype)
+    blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv, device,
+      next_logits$dtype)
     pos <- cond_len  # 0-based position of the next token to generate
 
     for (i in seq_len(max_length)) {
       if (length(generated) >= max_length) break
 
+      next_logits <- next_logits + supp_mask
+      if (length(generated) == sample_begin) {
+        next_logits <- next_logits + blank_mask
+      }
       if (timestamps) {
         next_logits <- apply_timestamp_rules(next_logits, generated,
           special, sample_begin)
@@ -332,6 +344,7 @@ greedy_decode_jit <- function(
     tokens = generated,
     cross_attn_weights = all_cross_attn,
     sum_logprob = sum_logprob,
-    n_tokens = n_tokens
+    n_tokens = n_tokens,
+    no_speech_prob = no_speech_prob
   )
 }

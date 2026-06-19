@@ -257,6 +257,8 @@ transcribe <- function(
 #' @param best_of Number of samples per temperature > 0.
 #' @param compression_ratio_threshold Max compression ratio before fallback.
 #' @param logprob_threshold Min average log probability before fallback.
+#' @param no_speech_threshold Skip a window as silence when its no-speech
+#'   probability exceeds this and the decode is not confident.
 #' @param length_penalty Length penalty exponent for beam search.
 #' @param patience Patience factor for beam search.
 #' @param jit Use the TorchScript greedy decode step on CUDA.
@@ -279,6 +281,7 @@ transcribe_chunk <- function(
   best_of = 1L,
   compression_ratio_threshold = 2.4,
   logprob_threshold = -1.0,
+  no_speech_threshold = 0.6,
   length_penalty = 1.0,
   patience = Inf,
   jit = TRUE,
@@ -309,34 +312,43 @@ transcribe_chunk <- function(
     }
   }
 
-  # Seek loop: decode repeatedly, advancing through the mel spectrogram
+  # Only decode the real audio, not the trailing padding. The mel is a fixed
+  # 3000 frames (30s); for shorter audio its tail is silence we must not
+  # transcribe. content_frames bounds the seek loop, faithful to
+  # whisper/transcribe.py - this is what stops the model "transcribing" the
+  # padding into hallucinated text. A path gives its duration via av; raw
+  # samples (the long-audio chunks from split_audio) give it directly via their
+  # length. Either way the loop stops at the real audio.
+  content_frames <- if (is.character(file)) {
+    as.integer(round(audio_duration(file) * 100))
+  } else {
+    as.integer(round(length(file) / WHISPER_SAMPLE_RATE * 100))
+  }
+  if (is.na(content_frames) || content_frames < 1L || content_frames > n_frames) {
+    content_frames <- n_frames
+  }
+  input_stride <- 2L  # mel frames per output token (0.02s vs 0.01s/frame)
+
+  # Seek loop: decode 30s windows, advancing through the content frames
   seek <- 0L  # current frame position
   all_generated <- integer(0)
   all_cross_attn <- if (word_timestamps) list() else NULL
   all_segments <- list()
   seek_iter <- 0L
 
-  while (seek < n_frames) {
+  while (seek < content_frames) {
     seek_iter <- seek_iter + 1L
     if (seek_iter > 50L) break  # safety limit
 
-    # Slice mel from seek position, pad to full width
-    remaining <- n_frames - seek
-    if (remaining < 1L) break
-
-    if (seek == 0L) {
-      mel <- full_mel
-    } else if (seek + 1L > n_frames) {
-      break
+    # This window spans [seek, seek + segment_size); slice the mel and pad to
+    # the fixed 30s encoder width with zeros.
+    segment_size <- min(n_frames, content_frames - seek)
+    mel_slice <- full_mel[, , (seek + 1L):(seek + segment_size)]
+    if (segment_size < n_frames) {
+      mel <- torch::nnf_pad(mel_slice, c(0L, n_frames - segment_size),
+        value = 0)
     } else {
-      # Slice mel[1, :, seek:] and pad to n_frames width
-      mel_slice <- full_mel[, , (seek + 1L):n_frames]
-      pad_width <- n_frames - mel_slice$size(3)
-      if (pad_width > 0L) {
-        mel <- torch::nnf_pad(mel_slice, c(0L, pad_width), value = 0)
-      } else {
-        mel <- mel_slice
-      }
+      mel <- mel_slice
     }
 
     # Compute seek time for this iteration
@@ -360,20 +372,35 @@ transcribe_chunk <- function(
       timestamps = internal_timestamps, word_timestamps = word_timestamps,
       compression_ratio_threshold = compression_ratio_threshold,
       logprob_threshold = logprob_threshold,
+      no_speech_threshold = no_speech_threshold,
       length_penalty = length_penalty, patience = patience,
       jit = jit, device = device)
 
     generated <- decode_result$tokens
+    sample_begin <- length(initial_tokens)
+
+    # No-speech gate: skip a window that reads as silence (high no-speech prob
+    # and a low-confidence decode), advancing one whole window.
+    should_skip <- !is.na(decode_result$no_speech_prob) &&
+      decode_result$no_speech_prob > no_speech_threshold
+    if (should_skip && !is.na(decode_result$avg_logprob) &&
+        decode_result$avg_logprob > logprob_threshold) {
+      should_skip <- FALSE  # confident enough to be speech, despite no-speech
+    }
+    if (should_skip) {
+      seek <- seek + segment_size
+      next
+    }
+
     all_generated <- c(all_generated, generated)
 
-    # Find the last timestamp token to determine where to seek next
-    last_ts_frame <- 0L
-    for (tok in generated) {
-      if (tok >= special$timestamp_begin) {
-        ts_seconds <- (tok - special$timestamp_begin) * 0.02
-        ts_frame <- as.integer(ts_seconds * 100)  # seconds to frames (10ms)
-        if (ts_frame > last_ts_frame) last_ts_frame <- ts_frame
-      }
+    # Content tokens (after the prompt) and the last timestamp they reached.
+    content <- generated[seq_along(generated) > sample_begin]
+    is_ts <- content >= special$timestamp_begin
+    last_ts_frame <- if (any(is_ts)) {
+      (max(content[is_ts]) - special$timestamp_begin) * input_stride
+    } else {
+      0L
     }
 
     # Extract segments with proper time offset
@@ -395,16 +422,17 @@ transcribe_chunk <- function(
       )))
     }
 
-    # Advance seek position
-    if (last_ts_frame > 0L) {
+    # Advance seek. Whisper often emits one segment, closes it with a
+    # timestamp, and stops - expecting the loop to resume from there. So when
+    # the last timestamp falls short of the window end, re-seek to it and
+    # continue; only when it reaches the window end (or there is no timestamp)
+    # do we advance a whole window, which at content_frames ends the loop.
+    remaining <- content_frames - seek
+    if (last_ts_frame >= 1L && last_ts_frame < remaining - 100L) {
       seek <- seek + last_ts_frame
     } else {
-      # No timestamp found — model produced no timed output, skip ahead
-      break
+      seek <- seek + segment_size
     }
-
-    # If last timestamp covered nearly the full remaining audio, stop
-    if (last_ts_frame >= remaining - 100L) break
   }
 
   if (verbose && seek_iter > 1L) {
@@ -490,6 +518,11 @@ greedy_decode <- function(
   all_cross_attn <- if (word_timestamps) list() else NULL
   sum_logprob <- 0
   n_tokens <- 0L
+  no_speech_prob <- NA_real_
+  # Suppression masks (SuppressTokens / SuppressBlank), built lazily once the
+  # vocab width and logit dtype are known.
+  supp_mask <- NULL
+  blank_mask <- NULL
 
   torch::with_no_grad({
       for (i in seq_len(max_length)) {
@@ -502,9 +535,29 @@ greedy_decode <- function(
         logits <- result$logits
         kv_cache <- result$kv_cache
 
+        # No-speech probability: softmax at the SOT position from the prompt
+        # prefill (the distribution that would pick the language slot).
+        if (i == 1L) {
+          no_speech_prob <- .no_speech_prob(logits, generated, special)
+        }
+
         # Get last position logits (R uses 1-based indexing)
         seq_len_val <- logits$size(2)
         next_logits <- logits[, seq_len_val, ] # (batch, vocab)
+
+        # Suppress non-speech / control tokens every step, and a leading
+        # blank on the first step (faithful to decoding.py).
+        if (is.null(supp_mask)) {
+          nv <- next_logits$size(2)
+          supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv,
+            device, next_logits$dtype)
+          blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv,
+            device, next_logits$dtype)
+        }
+        next_logits <- next_logits + supp_mask
+        if (length(generated) == sample_begin) {
+          next_logits <- next_logits + blank_mask
+        }
 
         # Apply timestamp logit rules when timestamps are enabled
         if (timestamps) {
@@ -547,7 +600,8 @@ greedy_decode <- function(
     tokens = generated,
     cross_attn_weights = all_cross_attn,
     sum_logprob = sum_logprob,
-    n_tokens = n_tokens
+    n_tokens = n_tokens,
+    no_speech_prob = no_speech_prob
   )
 }
 
@@ -1037,6 +1091,9 @@ sample_decode <- function(
   all_cross_attn <- if (word_timestamps) list() else NULL
   sum_logprob <- 0
   n_tokens <- 0L
+  no_speech_prob <- NA_real_
+  supp_mask <- NULL
+  blank_mask <- NULL
 
   torch::with_no_grad({
     for (i in seq_len(max_length)) {
@@ -1047,8 +1104,24 @@ sample_decode <- function(
       logits <- result$logits
       kv_cache <- result$kv_cache
 
+      if (i == 1L) {
+        no_speech_prob <- .no_speech_prob(logits, generated, special)
+      }
+
       seq_len_val <- logits$size(2)
       next_logits <- logits[, seq_len_val, ]
+
+      if (is.null(supp_mask)) {
+        nv <- next_logits$size(2)
+        supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv,
+          device, next_logits$dtype)
+        blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv,
+          device, next_logits$dtype)
+      }
+      next_logits <- next_logits + supp_mask
+      if (length(generated) == sample_begin) {
+        next_logits <- next_logits + blank_mask
+      }
 
       if (timestamps) {
         next_logits <- apply_timestamp_rules(next_logits, generated,
@@ -1083,7 +1156,8 @@ sample_decode <- function(
     tokens = generated,
     cross_attn_weights = all_cross_attn,
     sum_logprob = sum_logprob,
-    n_tokens = n_tokens
+    n_tokens = n_tokens,
+    no_speech_prob = no_speech_prob
   )
 }
 
@@ -1178,10 +1252,20 @@ beam_search_decode <- function(
   })
   kv_cache <- result$kv_cache
   logits <- result$logits
+  no_speech_prob <- .no_speech_prob(logits, init_ids, special)
 
   # Get first token logits
   seq_len_val <- logits$size(2)
   first_logits <- logits[, seq_len_val, ]
+
+  # Suppression masks, reused across the beam loop below. The first token is
+  # the first generated step, so the blank mask applies here too.
+  nv <- first_logits$size(2)
+  supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv, device,
+    first_logits$dtype)
+  blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv, device,
+    first_logits$dtype)
+  first_logits <- first_logits + supp_mask + blank_mask
 
   if (timestamps) {
     first_logits <- apply_timestamp_rules(first_logits, init_ids,
@@ -1260,6 +1344,7 @@ beam_search_decode <- function(
 
       for (b in seq_len(n_active)) {
         beam_logits <- next_logits[b, ]$unsqueeze(1L)
+        beam_logits <- beam_logits + supp_mask
 
         if (timestamps) {
           beam_logits <- apply_timestamp_rules(beam_logits,
@@ -1373,7 +1458,8 @@ beam_search_decode <- function(
     tokens = best_hyp$tokens,
     cross_attn_weights = cross_attn_weights,
     sum_logprob = best_hyp$cum_log_prob,
-    n_tokens = best_hyp$n_tokens
+    n_tokens = best_hyp$n_tokens,
+    no_speech_prob = no_speech_prob
   )
 }
 
@@ -1395,6 +1481,8 @@ beam_search_decode <- function(
 #' @param word_timestamps Whether to collect cross-attention weights
 #' @param compression_ratio_threshold Max compression ratio
 #' @param logprob_threshold Min average log probability
+#' @param no_speech_threshold Skip a window as silence when its no-speech
+#'   probability exceeds this and the decode is not confident.
 #' @param length_penalty Length penalty for beam search
 #' @param patience Patience factor for beam search
 #' @param jit Use the TorchScript greedy decode step on CUDA (default TRUE).
@@ -1413,6 +1501,7 @@ decode_with_fallback <- function(
   word_timestamps = FALSE,
   compression_ratio_threshold = 2.4,
   logprob_threshold = -1.0,
+  no_speech_threshold = 0.6,
   length_penalty = 1.0,
   patience = Inf,
   jit = TRUE,
@@ -1473,25 +1562,32 @@ decode_with_fallback <- function(
       decode_result <- best_result
     }
 
-    # Check quality thresholds
+    # Quality metrics, attached to the result for the caller's no-speech gate.
     sample_begin <- length(as.integer(as.array(initial_tokens$cpu())))
     content_tokens <- decode_result$tokens[seq_len(length(decode_result$tokens)) > sample_begin]
     text <- tokenizer$decode(content_tokens)
-
-    # Compression ratio check (skip for very short text)
-    if (nchar(text) > 0) {
-      cr <- compression_ratio(text)
-      if (cr > compression_ratio_threshold) next
+    cr <- if (nchar(text) > 0) compression_ratio(text) else 0
+    avg_logprob <- if (decode_result$n_tokens > 0) {
+      decode_result$sum_logprob / decode_result$n_tokens
+    } else {
+      -Inf
     }
+    decode_result$compression_ratio <- cr
+    decode_result$avg_logprob <- avg_logprob
+    decode_result$temperature <- temp
 
-    # Average log prob check
-    if (decode_result$n_tokens > 0) {
-      avg_logprob <- decode_result$sum_logprob / decode_result$n_tokens
-      if (avg_logprob < logprob_threshold) next
+    # Fallback decision (faithful to decoding.py): retry on a too-repetitive or
+    # low-confidence decode, but never retry a window that reads as silence -
+    # the seek loop skips it instead.
+    needs_fallback <- (cr > compression_ratio_threshold) ||
+      (avg_logprob < logprob_threshold)
+    if (!is.na(decode_result$no_speech_prob) &&
+        decode_result$no_speech_prob > no_speech_threshold) {
+      needs_fallback <- FALSE
     }
-
-    # Quality OK
-    return(decode_result)
+    if (!needs_fallback) {
+      return(decode_result)
+    }
   }
 
   # All temperatures failed, return last result
