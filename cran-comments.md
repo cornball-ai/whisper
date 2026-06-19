@@ -6,7 +6,8 @@
 
 * local Ubuntu 24.04, R 4.6.0
 * GitHub Actions (r-ci): ubuntu-latest, macos-latest
-* win-builder R-devel
+* Windows 10: R 4.6.0 and R-devel
+* win-builder: R-release and R-devel
 
 ## Changes since last CRAN release (0.3.0)
 
@@ -26,12 +27,17 @@
   set, so it has no effect during checks on CUDA-less machines.
 - `whisper_dtype()` falls back to float32 on the GTX 16-series, whose fp16
   is hardware-broken; CUDA-gated, so no effect during checks.
+- Degenerate repetition loops are now bounded (decoding capped at half the
+  text context) with a compression-ratio temperature fallback, matching the
+  reference; previously a long non-speech sound could loop a single token.
+- Fixed `tokenizer_encode()` crashing on models whose `vocab.json` omits the
+  `<|endoftext|>` key (large-v3); the end-of-text id now comes from the
+  special-token table, with a regression test, and `encode_special()` resolves
+  the core special tokens from that table too.
+- Scaled dot-product attention now calls the exported
+  `torch::torch_scaled_dot_product_attention()` (torch >= 0.17.0).
 
 ## Notes
-
-This package uses `torch_scaled_dot_product_attention()` from torch via
-`get("torch_scaled_dot_product_attention", envir = asNamespace("torch"))`,
-as it is not yet exported in the current CRAN torch release.
 
 This package provides a native R implementation of OpenAI's Whisper
 speech-to-text model. Model weights are downloaded from HuggingFace on
