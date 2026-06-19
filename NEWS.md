@@ -1,3 +1,14 @@
+# whisper 0.3.0.7
+
+* Fix `tokenizer_encode()` crashing for models whose `vocab.json` omits the
+  `<|endoftext|>` key (large-v3): the end-of-text id now comes from the
+  special-token table (as in the Python reference, which keeps special tokens
+  out of the BPE vocab), and the lookup can no longer return a list. This was a
+  regression in 0.3.0.5, where the new token-suppression list became the first
+  caller of `tokenizer_encode()` during tokenizer construction - so loading
+  large-v3 failed until now.
+* README performance table refreshed for the JIT word-timestamp path.
+
 # whisper 0.3.0.6
 
 * Bound and mitigate degenerate repetition loops, matching the reference. A

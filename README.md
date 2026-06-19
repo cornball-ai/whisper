@@ -145,17 +145,16 @@ It's built on base R sockets (no extra dependencies). A systemd unit ships in
 
 | Model | Parameters | Disk (fp32) | English WER | Peak VRAM (CUDA fp16) | Speed* |
 |-------|------------|-------------|-------------|----------------------|--------|
-| tiny | 39M | 151 MB | ~9% | 564 MiB | 5.5s |
-| base | 74M | 290 MB | ~7% | 734 MiB | 1.9s |
-| small | 244M | 967 MB | ~5% | 1,454 MiB | 3.6s |
-| medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 8.6s |
-| large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 16.7s |
+| tiny | 39M | 151 MB | ~9% | 564 MiB | 1.1s |
+| base | 74M | 290 MB | ~7% | 734 MiB | 1.1s |
+| small | 244M | 967 MB | ~5% | 1,454 MiB | 1.2s |
+| medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 1.3s |
+| large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 2.7s |
 
-*Speed measured on RTX 5060 Ti transcribing a 17s clip with
+*Speed is a warm transcribe of a 17s clip on an RTX 5060 Ti with
 `word_timestamps = TRUE` (the heavier path; plain greedy is several times
-faster, e.g. large-v3 ~1s for a 19s clip). These predate word timestamps
-moving onto the JIT decoder, so they are conservative. Peak VRAM includes
-~364 MiB torch CUDA context overhead.
+faster, e.g. large-v3 ~1.4s), excluding one-time model load and JIT
+compilation. Peak VRAM includes ~364 MiB torch CUDA context overhead.
 
 Models are downloaded from HuggingFace and cached in `~/.cache/huggingface/` unless otherwise specified.
 
