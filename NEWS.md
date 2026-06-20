@@ -1,3 +1,11 @@
+# whisper 0.3.0.9
+
+* Scaled dot-product attention now calls the exported
+  `torch::torch_scaled_dot_product_attention()` instead of reaching into
+  torch's namespace; the torch dependency is floored at 0.17.0, where it is
+  exported. Resolves the R CMD check concern about reaching into another
+  package's internals.
+
 # whisper 0.3.0.8
 
 * Add a regression test for `tokenizer_encode()` on a vocab missing the
