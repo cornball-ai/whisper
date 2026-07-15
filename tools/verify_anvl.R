@@ -8,8 +8,10 @@ suppressMessages({
 })
 
 e <- new.env()
+sys.source("R/config.R", envir = e) # whisper_config
 sys.source("R/audio.R", envir = e) # constants + host helpers (torch untouched)
 sys.source("R/yq_audio.R", envir = e)
+sys.source("R/yq_encoder.R", envir = e)
 
 reltol <- function(a, b) max(abs(a - b)) / max(abs(b))
 ok <- TRUE
@@ -25,5 +27,11 @@ report <- function(name, got, ref, tol = 1e-3) {
 fix <- readRDS("tools/fixtures/mel.rds")
 got <- as.array(e$.yq_log_mel(fix$audio, fix$mel_fb))
 report("mel", got, fix$mel)
+
+# --- encoder ---
+fixe <- readRDS("tools/fixtures/encoder.rds")
+w <- e$yq_encoder_load_weights(fixe$weights, e$whisper_config("tiny"))
+enc <- as.array(e$yq_encoder(anvl::nv_array(fixe$mel, dtype = "f32"), w))
+report("encoder", enc, fixe$enc)
 
 quit(status = if (ok) 0L else 1L)

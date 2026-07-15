@@ -60,3 +60,12 @@ audit(
   paste(lines_of(REF, 164, 198), lines_of(REF, 218, 266), sep = "\n"),
   paste(readLines(PORT), collapse = "\n")
 )
+
+# encoder: attn + layer + encoder init/forward (skip create_sinusoidal_pe
+# 192-209, dead code since HF ships embed_positions.weight) vs yq_encoder.R
+audit(
+  "encoder",
+  paste(lines_of("R/encoder.R", 9, 190), lines_of("R/encoder.R", 211, 245),
+    sep = "\n"),
+  paste(readLines("R/yq_encoder.R"), collapse = "\n")
+)
