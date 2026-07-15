@@ -9,6 +9,9 @@
 ^CLAUDE\.md$
 ^fyi\.md$
 
+# anvl/yunque port dev tooling (fixtures, audit, verify)
+^tools$
+
 # Git files
 ^\.git$
 ^\.gitignore$

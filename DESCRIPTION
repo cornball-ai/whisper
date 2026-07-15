@@ -31,4 +31,9 @@ Imports:
     stats,
     utils
 Suggests:
-    tinytest
+    tinytest,
+    anvl,
+    yunque
+Remotes:
+    r-xla/anvl,
+    cornball-ai/yunque
