@@ -4,23 +4,31 @@
 # stop match the torch greedy path.
 
 yq_greedy_decode <- function(xa, dec_w, tok, eot, prompt, max_length = 224L) {
-  tokens <- matrix(as.integer(prompt), nrow = 1L)
+  cross_kv <- .yq_cross_kv(xa, dec_w)
   suppress <- tok$suppress_tokens
   blank <- tok$blank_tokens
+  # prefill the prompt (builds the initial self-KV cache)
+  res <- yq_decoder_incremental(matrix(as.integer(prompt), 1L), cross_kv,
+    NULL, dec_w, 0L)
+  self_kv <- res$self_kv
+  nl <- as.array(res$logits)[1L, length(prompt), ]
+  nl[suppress + 1L] <- -Inf
+  nl[blank + 1L] <- -Inf # SuppressBlank on the first generated step
+  nxt <- which.max(nl) - 1L
   generated <- integer(0)
+  offset <- length(prompt)
   for (step in seq_len(max_length)) {
-    logits <- as.array(yq_decoder(tokens, xa, dec_w))
-    nl <- logits[1L, ncol(tokens), ] # last-position logits, length n_vocab
-    nl[suppress + 1L] <- -Inf # 0-based ids -> R 1-based
-    if (step == 1L) {
-      nl[blank + 1L] <- -Inf # SuppressBlank: first step only
-    }
-    nxt <- which.max(nl) - 1L # 0-based token id
     if (nxt == eot) {
       break
     }
     generated <- c(generated, nxt)
-    tokens <- cbind(tokens, nxt)
+    res <- yq_decoder_incremental(matrix(nxt, 1L), cross_kv, self_kv, dec_w,
+      offset)
+    self_kv <- res$self_kv
+    offset <- offset + 1L
+    nl <- as.array(res$logits)[1L, 1L, ]
+    nl[suppress + 1L] <- -Inf
+    nxt <- which.max(nl) - 1L
   }
   generated
 }
@@ -50,7 +58,9 @@ yq_transcribe <- function(audio_file, path, config, model = "tiny",
   enc_w <- yq_encoder_load_weights(path, config)
   dec_w <- yq_decoder_load_weights(path, config)
   mel <- yq_audio_to_mel(audio_file, n_mels = config$n_mels)
-  xa <- yq_encoder(mel, enc_w)
+  # jit-compile the static-shape encoder (mel -> encoder output)
+  enc_fn <- anvl::jit(function(m) yq_encoder(m, enc_w))
+  xa <- enc_fn(mel)
   prompt <- get_initial_tokens(language = language, task = "transcribe",
     model = model, timestamps = FALSE)
   gen <- yq_greedy_decode(xa, dec_w, tok, special$eot, prompt, max_length)
