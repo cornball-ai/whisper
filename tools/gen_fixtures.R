@@ -1,52 +1,51 @@
 #!/usr/bin/env Rscript
 # Generate torch reference fixtures for the anvl/yunque port. Run with the
-# torch whisper installed; writes tools/fixtures/*.rds. Kept separate from the
-# anvl verification so torch and anvl never load in the same process.
+# torch whisper installed. Usage: Rscript tools/gen_fixtures.R [model]
+# (default "tiny"). CPU-only. Writes tools/fixtures/<model>/*.rds.
 suppressMessages(library(whisper))
 
-dir.create("tools/fixtures", showWarnings = FALSE, recursive = TRUE)
+model <- commandArgs(trailingOnly = TRUE)[1]
+if (is.na(model)) model <- "tiny"
+config <- whisper_config(model)
+fixdir <- file.path("tools/fixtures", model)
+dir.create(fixdir, showWarnings = FALSE, recursive = TRUE)
+weights_path <- whisper:::get_weights_path(model)
 set.seed(1234)
 
 # --- mel frontend ---
-# a synthetic 2 s signal; audio_to_mel pads/trims to 30 s internally
 audio <- as.numeric(sin(2 * pi * 220 * (1:32000) / 16000) * 0.3 +
   rnorm(32000, sd = 0.02))
-mel <- as.array(audio_to_mel(audio, n_mels = 80L))
+mel <- as.array(audio_to_mel(audio, n_mels = config$n_mels))
 saveRDS(list(
   audio = whisper:::pad_or_trim(audio),
-  mel_fb = whisper:::load_mel_filterbank(n_mels = 80L),
+  mel_fb = whisper:::load_mel_filterbank(n_mels = config$n_mels),
   mel = mel
-), "tools/fixtures/mel.rds")
-cat(sprintf("mel fixture: audio %d, mel %s\n", 32000L,
-  paste(dim(mel), collapse = "x")))
+), file.path(fixdir, "mel.rds"))
+cat(sprintf("[%s] mel %s\n", model, paste(dim(mel), collapse = "x")))
 
-# --- encoder (real tiny weights) ---
-model <- load_whisper_model("tiny")
-model$to(device = "cpu", dtype = torch::torch_float()) # fp32 reference
-weights_path <- path.expand("~/.cache/whisper/tiny/model.safetensors")
+# --- encoder + decoder (real weights, CPU fp32) ---
+mdl <- load_whisper_model(model, download = TRUE)
+mdl$to(device = "cpu", dtype = torch::torch_float())
 mel_t <- torch::torch_tensor(mel, dtype = torch::torch_float())
-enc <- as.array(torch::with_no_grad(model$encoder(mel_t)))
+enc <- as.array(torch::with_no_grad(mdl$encoder(mel_t)))
 saveRDS(list(mel = mel, enc = enc, weights = weights_path),
-  "tools/fixtures/encoder.rds")
-cat(sprintf("encoder fixture: enc %s\n", paste(dim(enc), collapse = "x")))
+  file.path(fixdir, "encoder.rds"))
+cat(sprintf("[%s] encoder %s\n", model, paste(dim(enc), collapse = "x")))
 
-# --- decoder (full forward, no cache) ---
-# SOT prompt: <|startoftranscript|> <|en|> <|transcribe|> <|notimestamps|>
 tokens <- matrix(c(50258L, 50259L, 50359L, 50363L), nrow = 1L)
 logits <- as.array(torch::with_no_grad({
-  dec <- model$decoder(
-    torch::torch_tensor(tokens, dtype = torch::torch_long()),
+  dec <- mdl$decoder(torch::torch_tensor(tokens, dtype = torch::torch_long()),
     torch::torch_tensor(enc, dtype = torch::torch_float()))
-  model$decoder$get_logits(dec$hidden_states)
+  mdl$decoder$get_logits(dec$hidden_states)
 }))
 saveRDS(list(tokens = tokens, xa = enc, logits = logits, weights = weights_path),
-  "tools/fixtures/decoder.rds")
-cat(sprintf("decoder fixture: logits %s\n", paste(dim(logits), collapse = "x")))
+  file.path(fixdir, "decoder.rds"))
+cat(sprintf("[%s] decoder %s\n", model, paste(dim(logits), collapse = "x")))
 
-# --- end-to-end reference transcription ---
+# --- end-to-end reference (CPU) ---
 jfk <- system.file("audio", "jfk.mp3", package = "whisper")
-ref <- transcribe(jfk, model = "tiny", language = "en", jit = FALSE,
-  verbose = FALSE)
+ref <- transcribe(jfk, model = model, language = "en", jit = FALSE,
+  device = "cpu", dtype = "float32", verbose = FALSE)
 saveRDS(list(text = ref$text, audio_file = jfk, weights = weights_path),
-  "tools/fixtures/transcribe.rds")
-cat("transcribe fixture:", ref$text, "\n")
+  file.path(fixdir, "transcribe.rds"))
+cat(sprintf("[%s] transcribe: %s\n", model, ref$text))
