@@ -42,3 +42,11 @@ logits <- as.array(torch::with_no_grad({
 saveRDS(list(tokens = tokens, xa = enc, logits = logits, weights = weights_path),
   "tools/fixtures/decoder.rds")
 cat(sprintf("decoder fixture: logits %s\n", paste(dim(logits), collapse = "x")))
+
+# --- end-to-end reference transcription ---
+jfk <- system.file("audio", "jfk.mp3", package = "whisper")
+ref <- transcribe(jfk, model = "tiny", language = "en", jit = FALSE,
+  verbose = FALSE)
+saveRDS(list(text = ref$text, audio_file = jfk, weights = weights_path),
+  "tools/fixtures/transcribe.rds")
+cat("transcribe fixture:", ref$text, "\n")
