@@ -69,3 +69,11 @@ audit(
     sep = "\n"),
   paste(readLines("R/yq_encoder.R"), collapse = "\n")
 )
+
+# decoder: layer + forward + get_logits vs yq_decoder.R (the KV-cache branch
+# is not ported yet, so cache literals show as ref-not-port and are expected)
+audit(
+  "decoder",
+  lines_of("R/decoder.R", 11, 208),
+  paste(readLines("R/yq_decoder.R"), collapse = "\n")
+)

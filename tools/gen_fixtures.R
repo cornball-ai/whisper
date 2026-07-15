@@ -29,3 +29,16 @@ enc <- as.array(torch::with_no_grad(model$encoder(mel_t)))
 saveRDS(list(mel = mel, enc = enc, weights = weights_path),
   "tools/fixtures/encoder.rds")
 cat(sprintf("encoder fixture: enc %s\n", paste(dim(enc), collapse = "x")))
+
+# --- decoder (full forward, no cache) ---
+# SOT prompt: <|startoftranscript|> <|en|> <|transcribe|> <|notimestamps|>
+tokens <- matrix(c(50258L, 50259L, 50359L, 50363L), nrow = 1L)
+logits <- as.array(torch::with_no_grad({
+  dec <- model$decoder(
+    torch::torch_tensor(tokens, dtype = torch::torch_long()),
+    torch::torch_tensor(enc, dtype = torch::torch_float()))
+  model$decoder$get_logits(dec$hidden_states)
+}))
+saveRDS(list(tokens = tokens, xa = enc, logits = logits, weights = weights_path),
+  "tools/fixtures/decoder.rds")
+cat(sprintf("decoder fixture: logits %s\n", paste(dim(logits), collapse = "x")))
