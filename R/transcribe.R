@@ -150,7 +150,7 @@ pipeline_transcribe <- function(
   result$model <- pipe$config$model_name
   result$backend <- "whisper"
   result$duration <- duration
-  result
+  attach_subtitle_shape(result)
 }
 
 #' Transcribe Audio
