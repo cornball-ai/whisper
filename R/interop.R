@@ -5,6 +5,10 @@
 #' just under a minute boundary carries into the minutes field instead of
 #' printing a 60th second.
 #'
+#' Negative and non-finite input (`NA`, `NaN`, `Inf`, `-Inf`) clamps to zero.
+#' `sprintf()`'s integer conversions reject non-finite doubles outright, so
+#' the guard has to catch infinities and not just missings.
+#'
 #' @param t Numeric vector of seconds.
 #'
 #' @return Character vector of `"HH:MM:SS.mmm"` timestamps.
@@ -12,7 +16,7 @@
 #' @noRd
 format_hms <- function(t) {
   ms <- round(as.numeric(t) * 1000)
-  ms[is.na(ms) | ms < 0] <- 0
+  ms[!is.finite(ms) | ms < 0] <- 0
   sprintf("%02d:%02d:%06.3f", ms %/% 3600000, (ms %% 3600000) %/% 60000,
     (ms %% 60000) / 1000)
 }

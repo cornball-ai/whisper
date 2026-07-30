@@ -14,9 +14,17 @@ expect_equal(whisper:::format_hms(c(0, 7.4)), c("00:00:00.000", "00:00:07.400"))
 expect_equal(whisper:::format_hms(59.9996), "00:01:00.000")
 expect_equal(whisper:::format_hms(3599.9999), "01:00:00.000")
 
-# Non-finite and negative input clamps to zero rather than erroring.
+# Negative and non-finite input clamps to zero rather than erroring.
+# sprintf()'s %d rejects non-finite doubles, so Inf has to be caught by the
+# guard and not just NA -- is.na() alone lets Inf through to an error.
 expect_equal(whisper:::format_hms(-1), "00:00:00.000")
 expect_equal(whisper:::format_hms(NA_real_), "00:00:00.000")
+expect_equal(whisper:::format_hms(NaN), "00:00:00.000")
+expect_equal(whisper:::format_hms(Inf), "00:00:00.000")
+expect_equal(whisper:::format_hms(-Inf), "00:00:00.000")
+expect_equal(whisper:::format_hms(c(1.5, Inf, NA_real_, -2)),
+             c("00:00:01.500", "00:00:00.000", "00:00:00.000",
+               "00:00:00.000"))
 
 # Every output is a well-formed HH:MM:SS.mmm string.
 expect_true(all(grepl("^\\d{2}:\\d{2}:\\d{2}\\.\\d{3}$",
