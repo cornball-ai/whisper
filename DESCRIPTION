@@ -20,6 +20,8 @@ Description: Speech-to-text transcription using a native R 'torch' implementatio
     implemented in R using the 'torch' package.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Depends:
+    R (>= 4.5.0)
 URL: https://github.com/cornball-ai/whisper
 BugReports: https://github.com/cornball-ai/whisper/issues
 Imports:
