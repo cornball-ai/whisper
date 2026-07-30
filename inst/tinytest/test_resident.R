@@ -126,7 +126,7 @@ expect_true(grepl("^[0-9a-f]{40}$", st$identity$revision))
 # The handle is bound to an exact device, index included
 expect_true(grepl("^cuda:[0-9]+$", st$device))
 
-# ---- full cycle: deterministic settings, token + tensor equivalence ----
+# ---- full cycle: deterministic settings, text + tensor equivalence ----
 base_vram <- alloc()
 
 # Fixed encoder input, created once and reused: n_mels from the conv1
