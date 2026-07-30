@@ -10,7 +10,10 @@ resident_load(model = "tiny", device = "cuda", dtype = "auto", download = TRUE,
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
 
 \item{device}{Target CUDA device for activation (default "cuda").
-Residency requires CUDA; pinned host memory exists to feed it.}
+Residency requires CUDA; pinned host memory exists to feed it. A bare
+"cuda" is resolved to the current device's explicit index at load
+time, and the handle stays bound to that exact device (`"cuda:N"`)
+for every later transition and synchronize.}
 
 \item{dtype}{"auto" (default), "float16", or "float32"; resolved against
 `device`.}

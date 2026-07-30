@@ -114,11 +114,17 @@ expect_true(all(vapply(names(res$pinned), function(nm) {
 expect_equal(res$pinned_bytes, sum(res$manifest$bytes))
 expect_equal(resident_status(res)$gpu_bytes, 0)
 
-# Identity: content digest + resolved repo/revision
+# Identity: content digest + resolved repo/revision. The revision must be
+# an actual snapshot sha, not NA -- normalizePath() used to resolve the
+# hfhub snapshots/<rev> symlink into blobs/ and erase it.
 st <- resident_status(res)
 expect_equal(nchar(st$identity$weights_sha256), 64)
 expect_equal(st$identity$repo, "openai/whisper-tiny")
-expect_true(is.character(st$identity$revision))
+expect_false(is.na(st$identity$revision))
+expect_true(grepl("^[0-9a-f]{40}$", st$identity$revision))
+
+# The handle is bound to an exact device, index included
+expect_true(grepl("^cuda:[0-9]+$", st$device))
 
 # ---- full cycle: deterministic settings, token + tensor equivalence ----
 base_vram <- alloc()
@@ -159,7 +165,9 @@ resident_activate(res)
 r2 <- do.call(resident_transcribe, c(list(res, audio), det))
 e2 <- enc_out(res)
 
-# token-level and tensor-level equivalence across cycles
+# text-level and tensor-level equivalence across cycles (the transcribe
+# result does not expose token ids; the encoder-output comparison below is
+# the lower-level check)
 expect_identical(r1$text, r2$text)
 expect_equal(r1$segments$text, r2$segments$text)
 expect_true((e1 - e2)$abs()$max()$item() <= 1e-4)
@@ -217,13 +225,28 @@ if (whisper::model_exists("base")) {
 
 # ---- unprovable rollback -> broken, and unload as the recovery path ----
 # Corrupt the pinned set so a failed activation cannot prove its rollback
-# (name coverage check fails). Nothing has moved to the GPU when the
-# injected move dies, so this breaks only the handle, not the GPU.
+# (name coverage check fails), AND move part of the model first, so the
+# broken handle genuinely holds CUDA tensors. gpu_bytes must then report
+# the observed on-GPU manifest bytes, not a stale zero.
 expect_equal(res$state, "inactive")
 res$pinned[["decoder.mask"]] <- NULL
-res$move <- function(res, device) stop("injected failure, corrupted pinned")
+res$move <- function(res, device) {
+  ts <- whisper:::.resident_tensors(res$pipe$model)
+  nms <- names(ts)[seq_len(5)]
+  torch::with_no_grad({
+    for (nm in nms) ts[[nm]]$set_data(ts[[nm]]$to(device = device))
+  })
+  stop("injected failure, corrupted pinned")
+}
 expect_error(resident_activate(res), pattern = "broken")
 expect_equal(res$state, "broken")
+# the rollback cause survives into last_error
+expect_true(grepl("rollback:", resident_status(res)$last_error))
+# honest accounting: the manifest is still enumerable here, so gpu_bytes
+# must be the observed sum of the 5 moved tensors -- not zero, not all,
+# and not NA (NA is reserved for the genuinely unknowable case)
+gb_broken <- resident_status(res)$gpu_bytes
+expect_true(gb_broken > 0 && gb_broken < res$pinned_bytes)
 expect_error(resident_transcribe(res, audio), pattern = "broken")
 expect_error(resident_deactivate(res), pattern = "broken")
 expect_equal(resident_status(res)$state, "broken")
@@ -232,3 +255,5 @@ resident_unload(res)
 expect_equal(res$state, "unloaded")
 expect_error(resident_activate(res), pattern = "unloaded")
 expect_equal(resident_status(res)$pinned_bytes, 0)
+# unload released the stranded CUDA tensors too
+expect_true(alloc() <= base_vram + 16 * 1024^2)

@@ -84,17 +84,28 @@
   invisible(cur)
 }
 
-#' TRUE when every manifest tensor is on the given device type
+#' TRUE when every manifest tensor sits on exactly the target device
+#'
+#' Exact equality, index included: a handle bound to cuda:0 must not pass
+#' verification with tensors on cuda:1.
 #' @noRd
-.resident_all_on <- function(res, type) {
+.resident_on_target <- function(res) {
   ok <- tryCatch({
     cur <- .resident_tensors(res$pipe$model)
     if (!setequal(names(cur), res$manifest$name)) {
-      return(FALSE)
+      FALSE
+    } else {
+      all(vapply(cur, function(t) t$device == res$target_device,
+        logical(1)))
     }
-    all(vapply(cur, function(t) t$device$type == type, logical(1)))
   }, error = function(e) FALSE)
   isTRUE(ok)
+}
+
+#' Synchronize the handle's own GPU, never whichever device is current
+#' @noRd
+.resident_sync <- function(res) {
+  torch::cuda_synchronize(device = res$target_device$index)
 }
 
 #' TRUE when every manifest tensor is back on CPU (i.e. pinned host state)
@@ -122,25 +133,40 @@
 #'
 #' The shared workhorse of deactivation and of rollback after a failed
 #' activation. Returns TRUE only when the restored pinned state has been
-#' verified tensor-by-tensor.
+#' verified tensor-by-tensor. Synchronization and cache-release failures
+#' make the rollback unprovable -- an asynchronous CUDA failure must not
+#' let a handle return to "inactive" -- and the cause is appended to
+#' last_error so it survives into the broken state.
 #' @noRd
 .resident_rollback <- function(res) {
+  cause <- NULL
   ok <- tryCatch({
-    try(torch::cuda_synchronize(), silent = TRUE)
+    .resident_sync(res)
     cur <- .resident_tensors(res$pipe$model)
     if (!setequal(names(cur), names(res$pinned))) {
-      return(FALSE)
+      cause <- "pinned set does not cover the current tensors"
+      FALSE
+    } else {
+      torch::with_no_grad({
+        for (nm in names(cur)) {
+          cur[[nm]]$set_data(res$pinned[[nm]])
+        }
+      })
+      gc()
+      torch::cuda_empty_cache()
+      TRUE
     }
-    torch::with_no_grad({
-      for (nm in names(cur)) {
-        cur[[nm]]$set_data(res$pinned[[nm]])
-      }
-    })
-    gc()
-    try(torch::cuda_empty_cache(), silent = TRUE)
-    TRUE
-  }, error = function(e) FALSE)
-  isTRUE(ok) && .resident_verify_pinned(res)
+  }, error = function(e) {
+    cause <<- conditionMessage(e)
+    FALSE
+  })
+  if (!isTRUE(ok)) {
+    res$last_error <- paste(
+      c(res$last_error, paste0("rollback: ", cause %||% "unknown")),
+      collapse = "; ")
+    return(FALSE)
+  }
+  .resident_verify_pinned(res)
 }
 
 #' Default move seam: one non-blocking module move
@@ -170,12 +196,35 @@
 }
 
 #' HF snapshot revision from an hfhub cache path, or NA
+#'
+#' Parses the path as given. normalizePath() must NOT be used here: the
+#' hfhub layout stores snapshots/<revision>/model.safetensors as a symlink
+#' into blobs/<hash>, so resolving symlinks erases the very path segment
+#' this function exists to read.
 #' @noRd
 .snapshot_revision <- function(path) {
-  parts <- strsplit(normalizePath(path, mustWork = FALSE), "/",
-    fixed = TRUE)[[1]]
+  parts <- strsplit(path.expand(path), "/", fixed = TRUE)[[1]]
   i <- which(parts == "snapshots")
   if (length(i) == 1 && length(parts) > i) parts[i + 1L] else NA_character_
+}
+
+#' Manifest bytes currently observed on the GPU, or NA when unknowable
+#'
+#' Honest accounting for broken partial transitions: a broken handle may
+#' still hold some CUDA tensors, and the consumer budgeting VRAM needs the
+#' observed number, not a stale one.
+#' @noRd
+.resident_gpu_bytes_observed <- function(res) {
+  tryCatch({
+    cur <- .resident_tensors(res$pipe$model)
+    if (!setequal(names(cur), res$manifest$name)) {
+      NA_real_
+    } else {
+      sum(vapply(cur, function(t) {
+        if (t$device$type == "cuda") t$numel() * t$element_size() else 0
+      }, numeric(1)))
+    }
+  }, error = function(e) NA_real_)
 }
 
 #' Load a Model as a Resident (Pinned Host Weights)
@@ -195,7 +244,10 @@
 #'
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
 #' @param device Target CUDA device for activation (default "cuda").
-#'   Residency requires CUDA; pinned host memory exists to feed it.
+#'   Residency requires CUDA; pinned host memory exists to feed it. A bare
+#'   "cuda" is resolved to the current device's explicit index at load
+#'   time, and the handle stays bound to that exact device (`"cuda:N"`)
+#'   for every later transition and synchronize.
 #' @param dtype "auto" (default), "float16", or "float32"; resolved against
 #'   `device`.
 #' @param download Download the model if not cached (default TRUE).
@@ -233,6 +285,14 @@ resident_load <- function(
   }
   if (!torch::cuda_is_available()) {
     stop("CUDA is not available")
+  }
+  # Bind the handle to one explicit GPU. A bare "cuda" resolves to the
+  # current device NOW; every later synchronize and device verification
+  # uses this index, so the handle cannot drift to whichever GPU happens
+  # to be current at transition time.
+  if (is.null(target$index)) {
+    target <- torch::torch_device(
+      paste0("cuda:", torch::cuda_current_device()))
   }
   resolved_dtype <- parse_dtype(dtype, target)
 
@@ -330,14 +390,14 @@ resident_activate <- function(res) {
   err <- NULL
   ok <- tryCatch({
     res$move(res, res$target_device)
-    torch::cuda_synchronize()
+    .resident_sync(res)
     TRUE
   }, error = function(e) {
     err <<- conditionMessage(e)
     FALSE
   })
 
-  if (ok && .resident_all_on(res, "cuda")) {
+  if (ok && .resident_on_target(res)) {
     res$state <- "active"
     res$gpu_bytes <- res$pinned_bytes
     return(invisible(res))
@@ -352,8 +412,9 @@ resident_activate <- function(res) {
       err)
   }
   res$state <- "broken"
+  res$gpu_bytes <- .resident_gpu_bytes_observed(res)
   stop("resident_activate() failed and rollback could not be verified; ",
-    "handle is broken: ", err)
+    "handle is broken: ", res$last_error)
 }
 
 #' Deactivate a Resident Model (Destroy the GPU Representation)
@@ -385,8 +446,10 @@ resident_deactivate <- function(res) {
     return(invisible(res))
   }
   res$state <- "broken"
+  res$gpu_bytes <- .resident_gpu_bytes_observed(res)
   stop("resident_deactivate() could not verify the pinned host state; ",
-    "handle is broken")
+    "handle is broken", if (is.null(res$last_error)) "" else
+      paste0(": ", res$last_error))
 }
 
 #' Transcribe with a Resident Model
@@ -421,10 +484,12 @@ resident_transcribe <- function(res, file, ...) {
 #' Callable in every state, including "broken" and "unloaded".
 #'
 #' @param res A `whisper_resident` handle.
-#' @return A list: model, state, in_flight, device, dtype, pinned_bytes,
-#'   gpu_bytes (logical sums over the tensor manifest, not allocator
-#'   statistics), identity (weights sha256, HF repo/revision, resolved
-#'   dtype), path (diagnostic), last_error.
+#' @return A list: model, state, in_flight, device (the exact bound device,
+#'   e.g. `"cuda:0"`), dtype, pinned_bytes, gpu_bytes (logical sums over
+#'   the tensor manifest, not allocator statistics; in the "broken" state
+#'   this is the observed on-GPU manifest bytes, or NA when unknowable),
+#'   identity (weights sha256, HF repo/revision, resolved dtype), path
+#'   (diagnostic), last_error.
 #' @export
 resident_status <- function(res) {
   if (!inherits(res, "whisper_resident")) {
@@ -435,7 +500,7 @@ resident_status <- function(res) {
     state = res$state,
     in_flight = isTRUE(res$in_flight),
     device = if (is.null(res$target_device)) NA_character_ else
-      res$target_device$type,
+      as.character(res$target_device),
     dtype = res$identity$dtype,
     pinned_bytes = if (identical(res$state, "unloaded")) 0 else
       res$pinned_bytes,
