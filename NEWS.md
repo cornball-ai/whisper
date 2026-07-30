@@ -1,3 +1,21 @@
+# whisper 0.4.1
+
+* `transcribe()` results now carry the shape subtitle tooling expects, so they
+  feed `subtitles::whisper_to_srt()` and `subtitles::whisper_to_ass()`
+  directly:
+
+  ```r
+  x <- whisper::transcribe("video.mp4", timestamps = TRUE)
+  subtitles::whisper_to_srt(x, "video.srt")
+  ```
+
+  A result with segments gains a `data` frame of `from`/`to` timestamp strings
+  and `text`, and class `c("whisper_result", "whisper_transcription")`. The
+  change is additive: `text`, `segments`, and `words` are unchanged, and
+  results without segments (`timestamps = FALSE`) are returned as before. Word
+  timings still require `word_timestamps = TRUE`, which
+  `whisper_to_ass(karaoke = TRUE)` needs.
+
 # whisper 0.4.0
 
 * New `serve()`: a single-process, OpenAI-compatible HTTP STT server
