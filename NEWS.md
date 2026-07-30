@@ -1,3 +1,29 @@
+# whisper 0.5.0
+
+* In-process model residency: keep a model's weights as page-locked (pinned)
+  CPU tensors and create/destroy its GPU representation on demand, so
+  switching models on a small GPU is a sub-second DMA copy instead of a
+  full reload from disk.
+
+  ```r
+  res <- resident_load("medium")   # loads, pins weights in host RAM
+  resident_activate(res)           # DMA copy to GPU: ~0.25 s for 1.4 GB
+  resident_transcribe(res, "audio.mp3", timestamps = TRUE)
+  resident_deactivate(res)         # VRAM freed; weights stay pinned in RAM
+  resident_activate(res)           # fast again -- no disk involved
+  resident_unload(res)
+  ```
+
+  Transitions are transactional: a partially-failed activation (e.g. GPU
+  out-of-memory) rolls back to the pinned host state and verifies it; an
+  unverifiable rollback fail-closes the handle. `resident_status()` reports
+  state, per-tensor logical byte counts, and a content identity (weights
+  sha256, HF repo and snapshot revision, resolved dtype). New functions:
+  `resident_load()`, `resident_activate()`, `resident_deactivate()`,
+  `resident_transcribe()`, `resident_status()`, `resident_unload()`.
+
+* whisper now requires R >= 4.5.0 (for `tools::sha256sum()`).
+
 # whisper 0.4.1
 
 * `transcribe()` results now carry the shape subtitle tooling expects, so they
