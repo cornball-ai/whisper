@@ -27,6 +27,7 @@
 
 # Development scripts
 ^scripts$
+^tools$
 
 # Package development
 ^cran-comments\.md$
