@@ -1,3 +1,17 @@
+# whisper 0.5.1
+
+* `whisper_tune_gc()` no longer initializes CUDA before setting the options
+  it exists to set. torch reads the allocator rates exactly once, at CUDA
+  init, and the function's own device and dtype resolution
+  (`parse_device("auto")`, `parse_dtype()`, and allocating a tensor to
+  measure its element size) triggered that init first -- so the options
+  landed after they had been read, did nothing for the rest of the session,
+  and the usual success message was printed anyway. Device and dtype are
+  now resolved from strings and `nvidia-smi`, which reports GPU name and
+  memory without creating a CUDA context. This matters most where the
+  function is most useful: tuning once at process start, before several
+  models load.
+
 # whisper 0.5.0
 
 * In-process model residency: keep a model's weights as page-locked (pinned)
