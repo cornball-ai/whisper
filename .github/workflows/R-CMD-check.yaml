@@ -13,6 +13,40 @@ env:
   TORCH_HOME: /tmp/torch
 
 jobs:
+  # Guard against a stray `git add -A <dir>` committing generated artifacts.
+  # The total is the load-bearing check: the 32 MB of .rds fixtures that once
+  # landed here were mostly well under any sane per-file cap.
+  size-guard:
+    runs-on: ubuntu-latest
+    env:
+      MAX_TOTAL_KB: 8192
+      MAX_FILE_KB: 2048
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Reject oversized tracked content
+        run: |
+          fail=0
+          total=$(git ls-files -z | xargs -0 -r du -bc | tail -1 | cut -f1)
+          total_kb=$((total / 1024))
+          echo "tracked total: ${total_kb} KB (cap ${MAX_TOTAL_KB} KB)"
+          if [ "$total_kb" -gt "$MAX_TOTAL_KB" ]; then
+            echo "::error::tracked content is ${total_kb} KB, over the ${MAX_TOTAL_KB} KB cap"
+            echo "largest tracked files:"
+            git ls-files -z | xargs -0 -r du -b | sort -rn | head -10 |
+              awk '{printf "  %8.1f KB  %s\n", $1/1024, $2}'
+            fail=1
+          fi
+          while IFS=$'\t' read -r sz path; do
+            kb=$((sz / 1024))
+            if [ "$kb" -gt "$MAX_FILE_KB" ]; then
+              echo "::error::${path} is ${kb} KB, over the ${MAX_FILE_KB} KB per-file cap"
+              fail=1
+            fi
+          done < <(git ls-files -z | xargs -0 -r du -b)
+          if [ "$fail" -eq 0 ]; then echo "size guard: OK"; fi
+          exit "$fail"
+
   R-CMD-check:
     strategy:
       fail-fast: false
