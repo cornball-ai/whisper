@@ -138,7 +138,7 @@
 #' let a handle return to "inactive" -- and the cause is appended to
 #' last_error so it survives into the broken state.
 #' @noRd
-.resident_rollback <- function(res) {
+.resident_rollback <- function(res, release = TRUE) {
   cause <- NULL
   ok <- tryCatch({
     .resident_sync(res)
@@ -153,7 +153,9 @@
         }
       })
       gc()
-      torch::cuda_empty_cache()
+      if (isTRUE(release)) {
+        torch::cuda_empty_cache()
+      }
       TRUE
     }
   }, error = function(e) {
@@ -425,10 +427,27 @@ resident_activate <- function(res) {
 #' is a DMA copy, not a disk reload. Refuses while a transcription is in
 #' flight.
 #'
+#' `release` decides who gets the freed VRAM, and it is worth about an
+#' order of magnitude. With `release = TRUE` (the default) the CUDA
+#' caching allocator hands its blocks back to the driver, so the memory is
+#' visible as free to other processes -- but the next activation must
+#' re-acquire every block from the driver, which on a small card measured
+#' ~9 ms per tensor (medium fp32, 2.85 GB across 948 tensors: 9.2 s,
+#' 0.31 GB/s). With `release = FALSE` the blocks stay in this process's
+#' pool for the next model to reuse, and the same activation took 0.86 s
+#' (3.29 GB/s), matching raw pinned-DMA bandwidth on that card. Use
+#' `FALSE` when one process hosts every model and switches between
+#' them; use the default when a different process needs the card.
+#'
 #' @param res A `whisper_resident` handle.
+#' @param release Return the allocator's blocks to the driver (default
+#'   TRUE). FALSE keeps them pooled for a fast next activation; the
+#'   weights are freed either way, and `gpu_bytes` goes to zero in both
+#'   cases (the retained pool is process overhead, attributable to no
+#'   model).
 #' @return The handle, invisibly. No-op when already inactive.
 #' @export
-resident_deactivate <- function(res) {
+resident_deactivate <- function(res, release = TRUE) {
   .resident_guard(res, "resident_deactivate")
   if (isTRUE(res$in_flight)) {
     stop("resident_deactivate(): a transcription is in flight")
@@ -440,7 +459,7 @@ resident_deactivate <- function(res) {
     stop("cannot deactivate from state '", res$state, "'")
   }
   res$state <- "deactivating"
-  if (.resident_rollback(res)) {
+  if (.resident_rollback(res, release = release)) {
     res$state <- "inactive"
     res$gpu_bytes <- 0
     return(invisible(res))

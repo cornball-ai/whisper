@@ -1,4 +1,4 @@
-# whisper 0.5.0
+# whisper 0.5.0.1
 
 * In-process model residency: keep a model's weights as page-locked (pinned)
   CPU tensors and create/destroy its GPU representation on demand, so
@@ -21,6 +21,16 @@
   sha256, HF repo and snapshot revision, resolved dtype). New functions:
   `resident_load()`, `resident_activate()`, `resident_deactivate()`,
   `resident_transcribe()`, `resident_status()`, `resident_unload()`.
+
+  `resident_deactivate(release = )` chooses who gets the freed VRAM, and
+  on a small card it is worth ~10x. The default `TRUE` returns the CUDA
+  allocator's blocks to the driver, so other processes see the memory
+  free; the next activation then re-acquires every block from the driver
+  (medium fp32 on a 6 GB card: 948 tensors, 2.85 GB, 9.2 s / 0.31 GB/s).
+  `FALSE` keeps the blocks pooled for the next model in the same process
+  to reuse: the identical activation takes 0.86 s / 3.29 GB/s, which is
+  the card's raw pinned-DMA bandwidth. Weights are freed and `gpu_bytes`
+  reaches zero either way; only the pool differs.
 
 * whisper now requires R >= 4.5.0 (for `tools::sha256sum()`).
 

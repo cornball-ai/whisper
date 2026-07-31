@@ -49,24 +49,35 @@ bytes <- s$pinned_bytes
 cat(sprintf("resident_load():         %8.2f s   (pins %.2f GB, dtype %s, sha256 %s...)\n",
   t_load, gb(bytes), s$dtype, substr(s$identity$weights_sha256, 1, 12)))
 
-act <- numeric(n)
-deact <- numeric(n)
-peak_active <- 0
-for (i in seq_len(n)) {
-  act[i] <- system.time(resident_activate(res))[["elapsed"]]
-  peak_active <- max(peak_active, alloc())
-  deact[i] <- system.time(resident_deactivate(res))[["elapsed"]]
+# Both deactivation modes. release = TRUE returns the allocator's blocks
+# to the driver (other processes see the VRAM free) and the next
+# activation re-acquires every block from the driver; release = FALSE
+# keeps them pooled for the next model in THIS process to reuse. On a
+# small card the difference is ~10x, so a single-process model host wants
+# FALSE and the number to quote for it is the second row.
+cycle <- function(release) {
+  act <- numeric(n)
+  deact <- numeric(n)
+  peak <- 0
+  for (i in seq_len(n)) {
+    act[i] <- system.time(resident_activate(res))[["elapsed"]]
+    peak <- max(peak, alloc())
+    deact[i] <- system.time(
+      resident_deactivate(res, release = release))[["elapsed"]]
+  }
+  list(act = act, deact = deact, peak = peak)
 }
-after_evict <- alloc()
 
-cat(sprintf("activate   x%d: median %.3f s  min %.3f  max %.3f  (%.2f GB/s)\n",
-  n, median(act), min(act), max(act), gb(bytes) / median(act)))
-cat(sprintf("deactivate x%d: median %.3f s  min %.3f  max %.3f\n",
-  n, median(deact), min(deact), max(deact)))
-cat(sprintf("allocator: active %.2f GB, after evict %.3f GB\n",
-  gb(peak_active), gb(after_evict)))
-cat(sprintf("speedup vs cold load: %.0fx (%.2f s -> %.3f s)\n",
-  t_cold / median(act), t_cold, median(act)))
+for (rel in c(TRUE, FALSE)) {
+  r <- cycle(rel)
+  cat(sprintf("release=%-5s activate   x%d: median %.3f s  min %.3f  max %.3f  (%.2f GB/s)\n",
+    rel, n, median(r$act), min(r$act), max(r$act),
+    gb(bytes) / median(r$act)))
+  cat(sprintf("             deactivate x%d: median %.3f s  (allocator active %.2f GB, after %.3f GB)\n",
+    n, median(r$deact), gb(r$peak), gb(alloc())))
+  cat(sprintf("             speedup vs cold load: %.0fx (%.2f s -> %.3f s)\n",
+    t_cold / median(r$act), t_cold, median(r$act)))
+}
 
 # sanity: the reactivated model still transcribes
 resident_activate(res)
