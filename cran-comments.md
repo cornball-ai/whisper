@@ -2,14 +2,15 @@
 
 0 errors | 0 warnings | 0 notes
 
-On Windows R-devel with a working torch installation the check is clean. On
-our Linux development machine torch's Lantern shared library currently fails
-to load, which produces two NOTEs of the form "torch failed to start"; those
-are an artifact of that machine, not of the package, and do not appear where
-torch loads correctly.
+On Windows, with a working torch installation, checks are clean on both
+R 4.6.0 and R-devel. On our Linux development machine torch's Lantern shared
+library currently fails to load, which produces two NOTEs of the form "torch
+failed to start"; those are an artifact of that machine, not of the package,
+and do not appear where torch loads correctly.
 
 ## Test environments
 
+* Windows 10, R 4.6.0 -- Status: OK
 * Windows 10, R-devel (2026-07) -- Status: OK
 * GitHub Actions (r-ci): ubuntu-latest, macos-latest -- passing
 * local Ubuntu 24.04, R 4.6.1 (torch installation broken; see above)
