@@ -62,6 +62,20 @@ whisper_dtype <- function(device = whisper_device()) {
 # "GTX 1660 black image" bug in other fp16 inference stacks. Detect by GPU
 # name and fall back to fp32. CUDA-gated and tryCatch-guarded, so it never
 # runs (or errors) on a CRAN check machine.
+# GPU name for a device index, via nvidia-smi. Deliberately NOT via torch:
+# callers include the GC tuner, which must not create a CUDA context.
+.gpu_name <- function(idx = 0L) {
+  name <- tryCatch(
+    system2("nvidia-smi", c("--query-gpu=name", "--format=csv,noheader",
+      paste0("--id=", idx)), stdout = TRUE)[1],
+    error = function(e) NA_character_)
+  if (length(name) != 1L || is.na(name) || !nzchar(name)) NA_character_ else name
+}
+
+.fp16_broken_name <- function(name) {
+  !is.na(name) && grepl("GTX\\s*16", name, ignore.case = TRUE)
+}
+
 .fp16_broken_gpu <- function(device = whisper_device()) {
   if (!inherits(device, "torch_device") || device$type != "cuda") {
     return(FALSE)
@@ -70,14 +84,53 @@ whisper_dtype <- function(device = whisper_device()) {
   if (is.null(idx) || is.na(idx)) {
     idx <- 0L
   }
-  name <- tryCatch(
-    system2("nvidia-smi", c("--query-gpu=name", "--format=csv,noheader",
-      paste0("--id=", idx)), stdout = TRUE)[1],
-    error = function(e) NA_character_)
-  if (is.na(name) || !nzchar(name)) {
-    return(FALSE)
+  .fp16_broken_name(.gpu_name(idx))
+}
+
+# Resolve a device argument to a CUDA index WITHOUT touching torch.
+#
+# whisper_tune_gc() cannot use parse_device(): "auto" routes through
+# whisper_device() -> cuda_is_available(), which initializes CUDA. torch
+# reads the allocator rates once, at that init, so probing first makes the
+# tuner a silent no-op -- it sets the options after they have been read and
+# still reports success. Everything here is strings and nvidia-smi.
+#
+# Returns an integer index for CUDA, or NULL for "no CUDA target".
+.gc_device_index <- function(device) {
+  if (inherits(device, "torch_device")) {
+    device <- as.character(device)
   }
-  grepl("GTX\\s*16", name, ignore.case = TRUE)
+  if (!is.character(device) || length(device) != 1L || is.na(device)) {
+    return(NULL)
+  }
+  if (identical(device, "auto")) {
+    # A GPU that nvidia-smi can see is the best available signal without
+    # creating a context. If there is none, there is nothing to tune.
+    if (is.na(.gpu_name(0L))) {
+      return(NULL)
+    }
+    return(0L)
+  }
+  if (!grepl("^cuda", device)) {
+    return(NULL)
+  }
+  idx <- suppressWarnings(as.integer(sub("^cuda:?", "", device)))
+  if (length(idx) != 1L || is.na(idx)) 0L else idx
+}
+
+# Bytes per parameter for a dtype argument, without allocating a tensor.
+.gc_element_bytes <- function(dtype, idx) {
+  if (identical(dtype, "float32")) {
+    return(4)
+  }
+  if (identical(dtype, "float16")) {
+    return(2)
+  }
+  if (inherits(dtype, "torch_dtype")) {
+    return(if (grepl("Half", as.character(dtype), fixed = TRUE)) 2 else 4)
+  }
+  # "auto": fp16 on CUDA, except the GTX 16-series, which computes it wrong.
+  if (.fp16_broken_name(.gpu_name(idx))) 4 else 2
 }
 
 # One-time message per session when falling back to fp32.
@@ -153,6 +206,14 @@ parse_dtype <- function(
 #' persist after the call - deliberately, since torch reads them later. The
 #' package never calls this for you; you invoke it.
 #'
+#' \strong{Call it before anything initializes CUDA.} torch reads the
+#' allocator rates exactly once, at CUDA init, so options set afterwards
+#' have no effect for the rest of the session. This function is careful not
+#' to initialize CUDA itself - it resolves the device and the dtype size
+#' from strings and \code{nvidia-smi} rather than from torch - but it
+#' cannot undo an init that already happened. In a process that hosts
+#' several models, call it first, before any of them load.
+#'
 #' For several models resident on one GPU in the \emph{same} R process, pass
 #' their combined size via \code{footprint_gb} so the single shared floor
 #' covers all of them.
@@ -180,8 +241,16 @@ parse_dtype <- function(
 #' @export
 whisper_tune_gc <- function(model = "large-v3", device = "auto",
                             dtype = "auto", footprint_gb = NULL) {
-  device <- parse_device(device)
-  if (!inherits(device, "torch_device") || device$type != "cuda") {
+  # Nothing in this function may touch torch. It exists to set options that
+  # torch reads exactly once, at CUDA init, so any call that initializes
+  # CUDA first -- parse_device("auto"), parse_dtype(), allocating a tensor
+  # to measure its element size -- makes the whole thing a silent no-op:
+  # the options get set after they were read, and the message still claims
+  # success. Device resolution and dtype sizing therefore go through
+  # .gc_device_index()/.gc_element_bytes(), which use strings and
+  # nvidia-smi only.
+  idx <- .gc_device_index(device)
+  if (is.null(idx)) {
     return(invisible(NULL))
   }
   if (is.null(getOption("torch.threshold_call_gc"))) {
@@ -191,14 +260,8 @@ whisper_tune_gc <- function(model = "large-v3", device = "auto",
     return(invisible(NULL))
   }
   if (is.null(footprint_gb)) {
-    dtype <- parse_dtype(dtype, device)
-    el_bytes <- tryCatch(torch::torch_empty(1L, dtype = dtype)$element_size(),
-      error = function(e) 4)
+    el_bytes <- .gc_element_bytes(dtype, idx)
     footprint_gb <- .whisper_param_count(model) * el_bytes / 1e9
-  }
-  idx <- device$index
-  if (is.null(idx) || is.na(idx)) {
-    idx <- 0L
   }
   total_gb <- tryCatch(
     as.numeric(system2("nvidia-smi",

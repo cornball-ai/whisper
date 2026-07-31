@@ -41,6 +41,14 @@ wins.
 persist after the call - deliberately, since torch reads them later. The
 package never calls this for you; you invoke it.
 
+\strong{Call it before anything initializes CUDA.} torch reads the
+allocator rates exactly once, at CUDA init, so options set afterwards
+have no effect for the rest of the session. This function is careful not
+to initialize CUDA itself - it resolves the device and the dtype size
+from strings and \code{nvidia-smi} rather than from torch - but it
+cannot undo an init that already happened. In a process that hosts
+several models, call it first, before any of them load.
+
 For several models resident on one GPU in the \emph{same} R process, pass
 their combined size via \code{footprint_gb} so the single shared floor
 covers all of them.
