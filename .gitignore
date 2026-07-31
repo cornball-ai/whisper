@@ -34,3 +34,6 @@ tests/testthat/_snaps/
 *.bin
 *.pt
 .Rproj.user
+
+# Generated verification fixtures (large, regenerable via tools/gen_fixtures.R)
+tools/fixtures/
