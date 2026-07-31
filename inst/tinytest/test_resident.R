@@ -179,6 +179,25 @@ expect_identical(r1$text, rf$text)
 # subtitle-interop shape rides along
 expect_true(inherits(r1, "whisper_transcription"))
 
+# ---- release = FALSE frees the weights but keeps the allocator pool ----
+# Both modes must zero gpu_bytes and return every tensor to pinned host
+# memory; they differ only in whether the blocks go back to the driver.
+# Retaining them is what makes switching fast in a single-process host.
+resident_activate(res)
+resident_deactivate(res, release = FALSE)
+expect_equal(res$state, "inactive")
+expect_equal(resident_status(res)$gpu_bytes, 0)
+expect_true(whisper:::.resident_verify_pinned(res))
+# allocated (per-tensor) drops; reserved (pooled) is allowed to stay
+expect_true(alloc() <= base_vram + 16 * 1024^2)
+expect_true(torch::cuda_memory_stats()$reserved_bytes$all$current >=
+  torch::cuda_memory_stats()$allocated_bytes$all$current)
+# and the handle still works afterwards
+resident_activate(res)
+r_keep <- do.call(resident_transcribe, c(list(res, audio), det))
+expect_identical(r1$text, r_keep$text)
+resident_deactivate(res)
+
 # ---- injected mid-activation failure: rollback proven ----
 resident_deactivate(res)
 expect_equal(res$state, "inactive")
