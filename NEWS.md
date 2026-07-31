@@ -1,4 +1,4 @@
-# whisper 0.5.0.1
+# whisper 0.5.0
 
 * In-process model residency: keep a model's weights as page-locked (pinned)
   CPU tensors and create/destroy its GPU representation on demand, so
