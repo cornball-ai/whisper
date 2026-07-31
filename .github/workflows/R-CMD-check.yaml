@@ -66,6 +66,17 @@ jobs:
       - name: Dependencies
         run: ./run.sh install_all
 
+      # Needs R, so it lives here rather than in size-guard, which has no R
+      # setup. NOTE: CI checks out a clean tree, so this job can never see
+      # untracked scratch in a working tree -- that is what the mandatory
+      # LOCAL run of the same script catches (see CLAUDE.md). Runs on both
+      # matrix legs to exercise GNU/BSD portability rather than assume it.
+      - name: Validate tarball contents
+        run: bash tools/check_tarball.sh
+
+      - name: Validator self-test (negative cases)
+        run: bash tools/check_tarball_selftest.sh
+
       - name: Install torch
         run: |
           mkdir -p $TORCH_HOME

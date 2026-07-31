@@ -111,3 +111,26 @@ Uses safetensors format from HuggingFace:
 ### Known Limitations
 
 - Translation quality varies by model size (larger models work better)
+
+## Before submitting to CRAN
+
+Run this against the real working tree, every time:
+
+```bash
+bash tools/check_tarball.sh
+```
+
+`R CMD build` packages the working **directory**, not the git tree, and it
+skips only a fixed known set of dot-entries -- not arbitrary
+dot-directories. Any untracked scratch left in the package root ships. This
+has already happened here: a `git worktree add` left a complete second copy
+of the package at `whisper/wtest_path/`, and the resulting tarball was
+823 KB instead of 405 KB, carrying a duplicate of every file.
+
+CI runs the same validator, but **CI cannot catch this class** -- it checks
+out a clean tree, so untracked local files do not exist there. The local run
+is the only thing that sees them. Inspect the final tarball by hand too:
+
+```bash
+tar tzf whisper_<version>.tar.gz | awk -F/ 'NF>1 {print $2}' | sort -u
+```
