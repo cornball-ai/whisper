@@ -35,3 +35,6 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+
+# r-ci writes this into the package root during CI setup
+^run\.sh$

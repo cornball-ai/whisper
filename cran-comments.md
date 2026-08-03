@@ -2,11 +2,14 @@
 
 0 errors | 0 warnings | 0 notes
 
-On Windows, with a working torch installation, checks are clean on both
-R 4.6.0 and R-devel. On our Linux development machine torch's Lantern shared
-library currently fails to load, which produces two NOTEs of the form "torch
-failed to start"; those are an artifact of that machine, not of the package,
-and do not appear where torch loads correctly.
+On Windows, checks are clean on both R 4.6.0 and R-devel.
+
+On our Linux development machine the check reports a WARNING and a NOTE of
+the form "torch failed to start". torch itself is healthy there -- it loads
+and runs CUDA work normally in an ordinary session -- but its load
+self-verification spawns a subprocess that fails under `R CMD check`. The
+condition is specific to that harness on that machine; it does not appear on
+either Windows check.
 
 ## Test environments
 
@@ -45,6 +48,14 @@ latter, so the floor is the correct one.
 
 - The package now requires R >= 4.5.0, for `tools::sha256sum()`, which gives
   each loaded model a content-addressed identity.
+
+- `whisper_tune_gc()` no longer initializes CUDA before setting the torch
+  allocator options it exists to set; torch reads those once, at CUDA init,
+  so the previous ordering made the call a no-op. CUDA-only, and inert
+  during checks on machines without a GPU.
+
+(Version 0.5.0 was prepared but never submitted; 0.5.1 supersedes it and
+this list covers both.)
 
 ## Notes
 
