@@ -23,9 +23,16 @@ format expected by Whisper.
 }
 \examples{
 \donttest{
-# Convert audio file to mel spectrogram
-audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
-mel <- audio_to_mel(audio_file)
-dim(mel)
+# Guarded like every other torch-touching example here. torch is an
+# Import so it installs on a check machine, but its Lantern runtime is
+# a separate post-install download that a build host will not have;
+# unguarded, this errors under --run-donttest with "Lantern is not
+# loaded".
+if (torch::torch_is_installed()) {
+  # Convert audio file to mel spectrogram
+  audio_file <- system.file("audio", "jfk.mp3", package = "whisper")
+  mel <- audio_to_mel(audio_file)
+  dim(mel)
+}
 }
 }
