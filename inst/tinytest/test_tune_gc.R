@@ -6,9 +6,20 @@
 # that still prints a success message. Everything here therefore runs
 # without torch being usable, which is also why these tests need no GPU.
 
-if (!requireNamespace("torch", quietly = TRUE)) {
-  exit_file("torch not installed")
-}
+# NOTE ON GUARDS. requireNamespace("torch") is NOT sufficient here: torch is
+# an Import, so it installs on any check machine, while its Lantern runtime
+# is a separate post-install download that a build host will not have.
+# Constructing a torch object without Lantern errors. torch_is_installed()
+# is the predicate that reports Lantern, which is why every other test file
+# in this package uses it -- this one did not, and win-builder failed on
+# exactly that.
+#
+# Most of what follows needs no torch at all, which is the point of the fix
+# under test: device and dtype resolution happen without touching torch. So
+# rather than skipping the file, only the few assertions that construct
+# torch objects are gated.
+have_torch <- requireNamespace("torch", quietly = TRUE) &&
+  isTRUE(tryCatch(torch::torch_is_installed(), error = function(e) FALSE))
 
 # ---- device resolution, no torch involved ----
 
@@ -25,18 +36,22 @@ expect_equal(idx("cuda:3"), 3L)
 # A malformed index degrades to device 0 rather than erroring.
 expect_equal(idx("cuda:notanumber"), 0L)
 
-# torch_device objects still work, via as.character() -- which is pure
-# formatting and creates no context.
-expect_equal(idx(torch::torch_device("cuda:2")), 2L)
-expect_null(idx(torch::torch_device("cpu")))
-
 # ---- dtype sizing, no tensor allocated ----
 
 eb <- whisper:::.gc_element_bytes
 expect_equal(eb("float32", 0L), 4)
 expect_equal(eb("float16", 0L), 2)
-expect_equal(eb(torch::torch_float(), 0L), 4)
-expect_equal(eb(torch::torch_float16(), 0L), 2)
+
+# ---- torch-object inputs (needs Lantern: constructing these loads it) ----
+
+if (have_torch) {
+  # torch_device objects work via as.character() -- pure formatting, which
+  # creates no CUDA context.
+  expect_equal(idx(torch::torch_device("cuda:2")), 2L)
+  expect_null(idx(torch::torch_device("cpu")))
+  expect_equal(eb(torch::torch_float(), 0L), 4)
+  expect_equal(eb(torch::torch_float16(), 0L), 2)
+}
 
 # ---- fp16-broken detection is name-based, not torch-based ----
 
@@ -85,4 +100,9 @@ writeLines(c(
 out <- suppressWarnings(system2(
   file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)),
   stdout = TRUE, stderr = TRUE))
+
+# Assert the subprocess actually reached the end, not just that the trap
+# string is absent: if it died early for any unrelated reason the grep
+# below would find nothing and pass vacuously.
+expect_true(any(grepl("^ok|^FAILED", out)))
 expect_false(any(grepl("initialized CUDA", out)))
