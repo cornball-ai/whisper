@@ -11,6 +11,7 @@ greedy_decode_jit(
   max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  suppress_blank = TRUE,
   device
 )
 }
@@ -28,6 +29,9 @@ greedy_decode_jit(
 \item{timestamps}{Whether to allow timestamp tokens}
 
 \item{word_timestamps}{Whether to collect cross-attention weights}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE); see \code{greedy_decode}.}
 
 \item{device}{Device}
 }

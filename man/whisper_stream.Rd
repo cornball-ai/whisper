@@ -7,6 +7,8 @@ whisper_stream(
   pipe,
   language = NULL,
   task = "transcribe",
+  sample_rate = 16000L,
+  channels = 1L,
   vad = c("silero", "energy"),
   onset_prob = 0.5,
   offset_prob = 0.35,
@@ -30,6 +32,13 @@ whisper_stream(
 once on the first utterance and pin for the session.}
 
 \item{task}{"transcribe" or "translate".}
+
+\item{sample_rate}{Declared input sample rate in Hz. Only 16000 is
+supported; anything else errors at construction rather than being
+silently transcribed at the wrong rate.}
+
+\item{channels}{Declared input channel count. Only mono (1) is
+supported.}
 
 \item{vad}{"silero" (default) or "energy" (no model download; markedly
 weaker endpointing, documented for offline use).}
@@ -81,8 +90,9 @@ vector of 16-bit sample values, or a numeric vector of float
 samples in [-1, 1]. Chunks can be any length; timing is derived
 from the cumulative sample count, never from chunk sizes. Returns
 a list of zero or more events.
-\item \code{$end()} - end of stream: flushes any open turn and
-returns its final events.
+\item \code{$end()} - end of stream: folds in any sub-frame audio
+remainder, flushes any open turn, returns its final events, and
+makes the stream terminal (further \code{$feed()} calls error).
 \item \code{$close()} - drop buffers and VAD state.
 }
 

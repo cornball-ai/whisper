@@ -11,6 +11,7 @@ greedy_decode(
   max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  suppress_blank = TRUE,
   device
 )
 }
@@ -28,6 +29,10 @@ greedy_decode(
 \item{timestamps}{Whether to allow timestamp tokens}
 
 \item{word_timestamps}{Whether to collect cross-attention weights}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE). Prefix-conditioned streaming decodes
+pass FALSE so a completed continuation may terminate immediately.}
 
 \item{device}{Device}
 }

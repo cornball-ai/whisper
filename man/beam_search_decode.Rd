@@ -14,6 +14,7 @@ beam_search_decode(
   word_timestamps = FALSE,
   length_penalty = 1,
   patience = Inf,
+  suppress_blank = TRUE,
   device
 )
 }
@@ -37,6 +38,9 @@ beam_search_decode(
 \item{length_penalty}{Length penalty exponent}
 
 \item{patience}{Patience factor (stop after patience*beam_size finished)}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE); see \code{greedy_decode}.}
 
 \item{device}{Device}
 }

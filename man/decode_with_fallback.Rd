@@ -20,6 +20,7 @@ decode_with_fallback(
   length_penalty = 1,
   patience = Inf,
   jit = TRUE,
+  suppress_blank = TRUE,
   device
 )
 }
@@ -56,6 +57,9 @@ probability exceeds this and the decode is not confident.}
 \item{patience}{Patience factor for beam search}
 
 \item{jit}{Use the TorchScript greedy decode step on CUDA (default TRUE).}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE); see \code{greedy_decode}.}
 
 \item{device}{Device}
 }
