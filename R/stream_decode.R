@@ -7,9 +7,16 @@
 # Event semantics (the gpu_voice.proto contract): stable text APPENDS --
 # the turn's text is the exact concatenation of stable events, joining
 # whitespace included -- and provisional text REPLACES, each event being
-# the whole uncommitted tail. Committing at token level is what makes the
-# append exact: text is only ever decoded over a committed token range,
-# never re-tokenized.
+# the whole uncommitted tail (an empty provisional clears a stale one).
+#
+# Commitment is tracked at token level, but event text is NEVER produced
+# by decoding a token slice on its own: byte-level BPE can split a UTF-8
+# character across two tokens, and the tokenizer drops incomplete
+# sequences, so slice-decoding loses characters at commit boundaries
+# (tiny tokenizes "¢" as two tokens; each half decodes to "").
+# Instead every event is a character delta between decodes of full token
+# prefixes, where partial characters at the boundary simply stay pending
+# until the tokens completing them commit.
 
 # Longest common prefix of two integer token vectors (pure; unit-tested).
 token_lcp <- function(a, b) {
@@ -28,21 +35,89 @@ ends_sentence <- function(text) {
 }
 
 # Per-turn decoder state. `committed` are content token ids already
-# emitted as stable; `prev_tail` is the previous decode's uncommitted
-# content, the other half of the LocalAgreement-2 comparison.
+# forced as the decoder prefix; `prev_tail` is the previous decode's
+# uncommitted content (the other half of the LocalAgreement-2
+# comparison; NULL means no hypothesis yet). `stable_sent` and
+# `provisional_sent` are the exact strings the consumer has, the
+# reference points for the delta/replace emission below.
 stream_decoder <- function(language = NULL, task = "transcribe") {
   list(
     language = language,
     task = task,
     committed = integer(0),
-    prev_tail = NULL
+    prev_tail = NULL,
+    stable_sent = "",
+    provisional_sent = ""
   )
 }
 
 stream_decoder_reset_turn <- function(sd) {
   sd$committed <- integer(0)
   sd$prev_tail <- NULL
+  sd$stable_sent <- ""
+  sd$provisional_sent <- ""
   sd
+}
+
+# Advance the LocalAgreement state with a fresh hypothesis. Pure given
+# decode_fn (integer token ids -> text), so it unit-tests with a stub
+# tokenizer. `content` is the hypothesis's content tokens beyond the
+# committed prefix. Returns list(sd, events, text).
+la_advance <- function(sd, content, final, decode_fn) {
+  events <- list()
+
+  n_commit <- if (final) {
+    length(content)
+  } else if (is.null(sd$prev_tail)) {
+    0L # first hypothesis of the turn: nothing to agree with yet
+  } else {
+    token_lcp(sd$prev_tail, content)
+  }
+
+  if (n_commit > 0L) {
+    sd$committed <- c(sd$committed, content[seq_len(n_commit)])
+    # Delta against the full committed prefix, never a slice decode. A
+    # trailing partial character decodes to nothing now and surfaces in a
+    # later delta, once the tokens completing it commit.
+    full_stable <- decode_fn(sd$committed)
+    if (startsWith(full_stable, sd$stable_sent)) {
+      delta <- substring(full_stable, nchar(sd$stable_sent) + 1L)
+      if (nzchar(delta)) {
+        events[[length(events) + 1L]] <- list(type = "transcript",
+          text = delta, stable = TRUE)
+        sd$stable_sent <- full_stable
+      }
+    }
+    # A non-prefix full_stable cannot happen with byte-level BPE (later
+    # decodes only ever complete the dropped trailing bytes); if it ever
+    # did, emitting would restate or contradict, so we hold position.
+  }
+
+  tail_tokens <- content[seq_along(content) > n_commit]
+  full_text <- if (length(c(sd$committed, tail_tokens)) > 0L) {
+    decode_fn(c(sd$committed, tail_tokens))
+  } else {
+    ""
+  }
+
+  if (!final) {
+    provisional <- if (startsWith(full_text, sd$stable_sent)) {
+      substring(full_text, nchar(sd$stable_sent) + 1L)
+    } else {
+      ""
+    }
+    # REPLACE semantics: emit on every change, the empty string included
+    # -- that is how a stale provisional is cleared when a new hypothesis
+    # retracts it.
+    if (!identical(provisional, sd$provisional_sent)) {
+      events[[length(events) + 1L]] <- list(type = "transcript",
+        text = provisional, stable = FALSE)
+      sd$provisional_sent <- provisional
+    }
+  }
+  sd$prev_tail <- tail_tokens
+
+  list(sd = sd, events = events, text = full_text)
 }
 
 # One decode over the utterance buffer (float samples at 16 kHz).
@@ -85,6 +160,10 @@ stream_decode_tick <- function(
     encoder_output <- pipe$model$encode(mel)
   })
 
+  # First-token blank/EOT suppression belongs to the original prompt
+  # boundary only: once committed tokens extend the prefix, the decode
+  # must be free to terminate immediately (the utterance may already be
+  # fully committed).
   decode_result <- decode_with_fallback(pipe$model, encoder_output,
     tokens, tokenizer,
     temperatures = if (final) final_temperatures else 0,
@@ -94,6 +173,7 @@ stream_decode_tick <- function(
     timestamps = FALSE,
     no_speech_threshold = no_speech_threshold,
     logprob_threshold = logprob_threshold,
+    suppress_blank = length(sd$committed) == 0L,
     device = pipe$device)
 
   generated <- decode_result$tokens
@@ -103,8 +183,8 @@ stream_decode_tick <- function(
   content <- content[content < special$timestamp_begin]
 
   # A buffer that reads as silence (the batch path's no-speech gate)
-  # contributes nothing; keep the previous tail rather than "agreeing"
-  # with a hallucination-prone empty decode.
+  # contributes an empty hypothesis: nothing commits, and a stale
+  # provisional is retracted rather than left standing.
   is_silence <- !is.na(decode_result$no_speech_prob) &&
     decode_result$no_speech_prob > no_speech_threshold &&
     !is.na(decode_result$avg_logprob) &&
@@ -113,35 +193,5 @@ stream_decode_tick <- function(
     content <- integer(0)
   }
 
-  events <- list()
-
-  n_commit <- if (final) {
-    length(content)
-  } else if (is.null(sd$prev_tail)) {
-    0L # first hypothesis of the turn: nothing to agree with yet
-  } else {
-    token_lcp(sd$prev_tail, content)
-  }
-
-  if (n_commit > 0L) {
-    stable_text <- tokenizer$decode(content[seq_len(n_commit)])
-    sd$committed <- c(sd$committed, content[seq_len(n_commit)])
-    events[[length(events) + 1L]] <- list(type = "transcript",
-      text = stable_text, stable = TRUE)
-  }
-
-  tail_tokens <- content[seq_along(content) > n_commit]
-  if (!final && length(tail_tokens) > 0L) {
-    events[[length(events) + 1L]] <- list(type = "transcript",
-      text = tokenizer$decode(tail_tokens), stable = FALSE)
-  }
-  sd$prev_tail <- if (is_silence) sd$prev_tail else tail_tokens
-
-  text <- if (length(c(sd$committed, tail_tokens)) > 0L) {
-    tokenizer$decode(c(sd$committed, tail_tokens))
-  } else {
-    ""
-  }
-
-  list(sd = sd, events = events, text = text)
+  la_advance(sd, content, final, tokenizer$decode)
 }
