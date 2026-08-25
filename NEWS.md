@@ -1,4 +1,4 @@
-# whisper 0.5.1.1
+# whisper 0.6.0
 
 * New `whisper_stream()`: live streaming transcription with endpointing.
   Feed 16 kHz mono PCM chunks, receive stable/provisional transcript
