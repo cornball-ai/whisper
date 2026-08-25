@@ -10,12 +10,16 @@
 VAD_FRAME_SAMPLES <- 512L
 VAD_FRAME_MS <- 32 # 512 / 16000 * 1000
 
-# Pinned release: the raw-master URL moves under us, a tag does not.
+# Content-pinned artifact: the URL addresses an immutable commit (tags
+# can be moved, commit hashes cannot), and the file's md5 is verified
+# before anything is handed to jit_load(), which executes what it loads.
 .silero_version <- "v6.2.1"
+.silero_commit <- "7e30209a3e901f9842f81b225f3e93d8199902b1"
+.silero_md5 <- "cbd961c3faa3246cdd62aefdea2fdbde"
 
 .silero_url <- function() {
   paste0("https://raw.githubusercontent.com/snakers4/silero-vad/",
-    .silero_version, "/src/silero_vad/data/silero_vad.jit")
+    .silero_commit, "/src/silero_vad/data/silero_vad.jit")
 }
 
 .vad_cache_path <- function() {
@@ -65,15 +69,24 @@ download_vad_model <- function(force = FALSE) {
   }
 
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  tmp <- paste0(path, ".tmp")
+  tmp <- tempfile("silero_vad_", tmpdir = dirname(path), fileext = ".tmp")
   on.exit(unlink(tmp), add = TRUE)
   status <- utils::download.file(.silero_url(), tmp, mode = "wb",
     quiet = TRUE)
-  if (status != 0L || !file.exists(tmp) || file.size(tmp) < 1e6) {
+  if (status != 0L || !file.exists(tmp)) {
     stop("Failed to download the Silero VAD model from ", .silero_url(),
       call. = FALSE)
   }
-  file.rename(tmp, path)
+  got <- unname(tools::md5sum(tmp))
+  if (!identical(got, .silero_md5)) {
+    stop("Silero VAD download does not match the pinned checksum ",
+      "(expected ", .silero_md5, ", got ", got, "). Refusing to load it.",
+      call. = FALSE)
+  }
+  if (!file.rename(tmp, path)) {
+    stop("Could not move the downloaded VAD model into place at ", path,
+      call. = FALSE)
+  }
   message("VAD model downloaded to: ", path)
   invisible(path)
 }
