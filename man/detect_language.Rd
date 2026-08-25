@@ -3,8 +3,15 @@
 \alias{detect_language}
 \title{Detect Language}
 \usage{
-detect_language(file, model = "tiny", device = "auto", dtype = "auto",
-                top_k = 5L, download = TRUE, verbose = TRUE)
+detect_language(
+  file,
+  model = "tiny",
+  device = "auto",
+  dtype = "auto",
+  top_k = 5L,
+  download = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{file}{Path to audio file (WAV, MP3, etc.)}

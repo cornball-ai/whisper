@@ -73,6 +73,9 @@ Uses safetensors format from HuggingFace:
 ## File Structure
 
 - `R/transcribe.R` - Main API, greedy/beam/sample decode, timestamp logit rules, temperature fallback
+- `R/stream.R` - `whisper_stream()` live session: PCM in, stable/provisional transcript + speech_ended events out
+- `R/stream_decode.R` - LocalAgreement-2 incremental decode with committed-prefix conditioning
+- `R/vad.R` - Silero VAD (TorchScript) + pure turn state machine for endpointing
 - `R/alignment.R` - DTW alignment, word timestamp computation
 - `R/audio.R` - Audio to mel spectrogram
 - `R/encoder.R` - Encoder transformer (with `need_weights` dual-path attention)

@@ -215,6 +215,8 @@ def decode_step_x(x: Tensor, w: List[Tensor], gw: List[Tensor],
 #' @param max_length Maximum output length
 #' @param timestamps Whether to allow timestamp tokens
 #' @param word_timestamps Whether to collect cross-attention weights
+#' @param suppress_blank Suppress a leading blank/EOT on the first
+#'   generated step (default TRUE); see \code{greedy_decode}.
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 #' @keywords internal
@@ -226,6 +228,7 @@ greedy_decode_jit <- function(
   max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  suppress_blank = TRUE,
   device
 ) {
   special <- whisper_special_tokens(tokenizer$model)
@@ -294,7 +297,7 @@ greedy_decode_jit <- function(
       if (length(generated) >= max_length) break
 
       next_logits <- next_logits + supp_mask
-      if (length(generated) == sample_begin) {
+      if (suppress_blank && length(generated) == sample_begin) {
         next_logits <- next_logits + blank_mask
       }
       if (timestamps) {

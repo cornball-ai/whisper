@@ -3,8 +3,14 @@
 \alias{compute_word_timestamps}
 \title{Compute Word-Level Timestamps}
 \usage{
-compute_word_timestamps(tokens, cross_attn_weights, tokenizer, config,
-                        time_offset = 0, sample_begin = 4L)
+compute_word_timestamps(
+  tokens,
+  cross_attn_weights,
+  tokenizer,
+  config,
+  time_offset = 0,
+  sample_begin = 4L
+)
 }
 \arguments{
 \item{tokens}{Integer vector of generated token IDs}

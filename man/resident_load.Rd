@@ -3,8 +3,13 @@
 \alias{resident_load}
 \title{Load a Model as a Resident (Pinned Host Weights)}
 \usage{
-resident_load(model = "tiny", device = "cuda", dtype = "auto", download = TRUE,
-              verbose = TRUE)
+resident_load(
+  model = "tiny",
+  device = "cuda",
+  dtype = "auto",
+  download = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}

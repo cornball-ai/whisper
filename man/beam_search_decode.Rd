@@ -3,10 +3,20 @@
 \alias{beam_search_decode}
 \title{Beam Search Decode}
 \usage{
-beam_search_decode(model, encoder_output, initial_tokens, tokenizer,
-                   beam_size = 5L, max_length = 224L, timestamps = FALSE,
-                   word_timestamps = FALSE, length_penalty = 1, patience = Inf,
-                   device)
+beam_search_decode(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  beam_size = 5L,
+  max_length = 224L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  length_penalty = 1,
+  patience = Inf,
+  suppress_blank = TRUE,
+  device
+)
 }
 \arguments{
 \item{model}{WhisperModel}
@@ -28,6 +38,9 @@ beam_search_decode(model, encoder_output, initial_tokens, tokenizer,
 \item{length_penalty}{Length penalty exponent}
 
 \item{patience}{Patience factor (stop after patience*beam_size finished)}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE); see \code{greedy_decode}.}
 
 \item{device}{Device}
 }

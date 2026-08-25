@@ -3,13 +3,29 @@
 \alias{transcribe_chunk}
 \title{Transcribe Single Chunk}
 \usage{
-transcribe_chunk(file, model, tokenizer, config, language = NULL,
-                 task = "transcribe", timestamps = FALSE,
-                 word_timestamps = FALSE, beam_size = 1L,
-                 temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1), best_of = 1L,
-                 compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                 no_speech_threshold = 0.6, length_penalty = 1, patience = Inf,
-                 jit = TRUE, time_offset = 0, device, dtype, verbose = TRUE)
+transcribe_chunk(
+  file,
+  model,
+  tokenizer,
+  config,
+  language = NULL,
+  task = "transcribe",
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  no_speech_threshold = 0.6,
+  length_penalty = 1,
+  patience = Inf,
+  jit = TRUE,
+  time_offset = 0,
+  device,
+  dtype,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{file}{Audio file or mel spectrogram}

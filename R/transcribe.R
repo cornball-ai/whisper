@@ -494,6 +494,9 @@ transcribe_chunk <- function(
 #' @param max_length Maximum output length
 #' @param timestamps Whether to allow timestamp tokens
 #' @param word_timestamps Whether to collect cross-attention weights
+#' @param suppress_blank Suppress a leading blank/EOT on the first
+#'   generated step (default TRUE). Prefix-conditioned streaming decodes
+#'   pass FALSE so a completed continuation may terminate immediately.
 #' @param device Device
 #' @return Integer vector of generated tokens, or list with tokens and
 #'   cross_attn_weights when word_timestamps is TRUE
@@ -505,6 +508,7 @@ greedy_decode <- function(
   max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  suppress_blank = TRUE,
   device
 ) {
   # Use model-specific special tokens
@@ -557,7 +561,7 @@ greedy_decode <- function(
             device, next_logits$dtype)
         }
         next_logits <- next_logits + supp_mask
-        if (length(generated) == sample_begin) {
+        if (suppress_blank && length(generated) == sample_begin) {
           next_logits <- next_logits + blank_mask
         }
 
@@ -1065,6 +1069,8 @@ expand_kv_cache <- function(kv_cache, beam_size) {
 #' @param max_length Maximum output length
 #' @param timestamps Whether to allow timestamp tokens
 #' @param word_timestamps Whether to collect cross-attention weights
+#' @param suppress_blank Suppress a leading blank/EOT on the first
+#'   generated step (default TRUE); see \code{greedy_decode}.
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 sample_decode <- function(
@@ -1076,6 +1082,7 @@ sample_decode <- function(
   max_length = 224L,
   timestamps = FALSE,
   word_timestamps = FALSE,
+  suppress_blank = TRUE,
   device
 ) {
   special <- whisper_special_tokens(tokenizer$model)
@@ -1117,7 +1124,7 @@ sample_decode <- function(
           device, next_logits$dtype)
       }
       next_logits <- next_logits + supp_mask
-      if (length(generated) == sample_begin) {
+      if (suppress_blank && length(generated) == sample_begin) {
         next_logits <- next_logits + blank_mask
       }
 
@@ -1219,6 +1226,8 @@ forced_decode <- function(
 #' @param word_timestamps Whether to collect cross-attention weights
 #' @param length_penalty Length penalty exponent
 #' @param patience Patience factor (stop after patience*beam_size finished)
+#' @param suppress_blank Suppress a leading blank/EOT on the first
+#'   generated step (default TRUE); see \code{greedy_decode}.
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 beam_search_decode <- function(
@@ -1232,6 +1241,7 @@ beam_search_decode <- function(
   word_timestamps = FALSE,
   length_penalty = 1.0,
   patience = Inf,
+  suppress_blank = TRUE,
   device
 ) {
   special <- whisper_special_tokens(tokenizer$model)
@@ -1263,7 +1273,10 @@ beam_search_decode <- function(
     first_logits$dtype)
   blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv, device,
     first_logits$dtype)
-  first_logits <- first_logits + supp_mask + blank_mask
+  first_logits <- first_logits + supp_mask
+  if (suppress_blank) {
+    first_logits <- first_logits + blank_mask
+  }
 
   if (timestamps) {
     first_logits <- apply_timestamp_rules(first_logits, init_ids,
@@ -1484,6 +1497,8 @@ beam_search_decode <- function(
 #' @param length_penalty Length penalty for beam search
 #' @param patience Patience factor for beam search
 #' @param jit Use the TorchScript greedy decode step on CUDA (default TRUE).
+#' @param suppress_blank Suppress a leading blank/EOT on the first
+#'   generated step (default TRUE); see \code{greedy_decode}.
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 decode_with_fallback <- function(
@@ -1503,6 +1518,7 @@ decode_with_fallback <- function(
   length_penalty = 1.0,
   patience = Inf,
   jit = TRUE,
+  suppress_blank = TRUE,
   device
 ) {
   # The TorchScript decode step is greedy-only; restrict it to the CUDA
@@ -1518,20 +1534,21 @@ decode_with_fallback <- function(
           beam_size = beam_size, max_length = max_length,
           timestamps = timestamps, word_timestamps = word_timestamps,
           length_penalty = length_penalty, patience = patience,
-          device = device)
+          suppress_blank = suppress_blank, device = device)
       } else if (use_jit) {
         decode_result <- greedy_decode_jit(model, encoder_output,
           initial_tokens, tokenizer,
           max_length = max_length,
           timestamps = timestamps,
           word_timestamps = word_timestamps,
+          suppress_blank = suppress_blank,
           device = device)
       } else {
         decode_result <- greedy_decode(model, encoder_output,
           initial_tokens, tokenizer,
           max_length = max_length,
           timestamps = timestamps, word_timestamps = word_timestamps,
-          device = device)
+          suppress_blank = suppress_blank, device = device)
       }
     } else {
       # Sample best_of times, keep best by average log prob
@@ -1543,7 +1560,7 @@ decode_with_fallback <- function(
           initial_tokens, tokenizer,
           temperature = temp, max_length = max_length,
           timestamps = timestamps, word_timestamps = word_timestamps,
-          device = device)
+          suppress_blank = suppress_blank, device = device)
 
         avg_lp <- if (candidate$n_tokens > 0) {
           candidate$sum_logprob / candidate$n_tokens

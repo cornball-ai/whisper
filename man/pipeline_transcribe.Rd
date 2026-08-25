@@ -3,12 +3,23 @@
 \alias{pipeline_transcribe}
 \title{Pipeline Transcribe}
 \usage{
-pipeline_transcribe(pipe, file, language = NULL, task = "transcribe",
-                    timestamps = FALSE, word_timestamps = FALSE,
-                    beam_size = 1L, temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
-                    best_of = 1L, compression_ratio_threshold = 2.4,
-                    logprob_threshold = -1, length_penalty = 1, patience = Inf,
-                    jit = TRUE, verbose = TRUE)
+pipeline_transcribe(
+  pipe,
+  file,
+  language = NULL,
+  task = "transcribe",
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  beam_size = 1L,
+  temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+  best_of = 1L,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  length_penalty = 1,
+  patience = Inf,
+  jit = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{pipe}{A whisper_pipeline object.}

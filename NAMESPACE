@@ -2,6 +2,7 @@
 
 export(audio_to_mel)
 export(detect_language)
+export(download_vad_model)
 export(download_whisper_model)
 export(list_downloaded_models)
 export(list_whisper_models)
@@ -20,12 +21,14 @@ export(whisper_config)
 export(whisper_device)
 export(whisper_dtype)
 export(whisper_pipeline)
+export(whisper_stream)
 export(whisper_tokenizer)
 export(whisper_tune_gc)
 
 S3method(print,whisper_pipeline)
 S3method(print,whisper_resident)
 S3method(print,whisper_result)
+S3method(print,whisper_stream)
 
 importFrom(stats,median)
 importFrom(stats,setNames)

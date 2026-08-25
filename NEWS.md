@@ -1,3 +1,11 @@
+# whisper 0.6.0
+
+* New `whisper_stream()`: live streaming transcription with endpointing.
+  Feed 16 kHz mono PCM chunks, receive stable/provisional transcript
+  events and a speech-ended judgment (Silero VAD + LocalAgreement-2
+  incremental decoding). The in-process capability behind the fleet's
+  live voice wire.
+
 # whisper 0.5.1
 
 * `whisper_tune_gc()` no longer initializes CUDA before setting the options

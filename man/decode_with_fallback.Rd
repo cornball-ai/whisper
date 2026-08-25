@@ -3,13 +3,26 @@
 \alias{decode_with_fallback}
 \title{Decode with Temperature Fallback}
 \usage{
-decode_with_fallback(model, encoder_output, initial_tokens, tokenizer,
-                     temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
-                     beam_size = 5L, best_of = 5L, max_length = 224L,
-                     timestamps = FALSE, word_timestamps = FALSE,
-                     compression_ratio_threshold = 2.4, logprob_threshold = -1,
-                     no_speech_threshold = 0.6, length_penalty = 1,
-                     patience = Inf, jit = TRUE, device)
+decode_with_fallback(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  temperatures = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+  beam_size = 5L,
+  best_of = 5L,
+  max_length = 224L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  compression_ratio_threshold = 2.4,
+  logprob_threshold = -1,
+  no_speech_threshold = 0.6,
+  length_penalty = 1,
+  patience = Inf,
+  jit = TRUE,
+  suppress_blank = TRUE,
+  device
+)
 }
 \arguments{
 \item{model}{WhisperModel}
@@ -44,6 +57,9 @@ probability exceeds this and the decode is not confident.}
 \item{patience}{Patience factor for beam search}
 
 \item{jit}{Use the TorchScript greedy decode step on CUDA (default TRUE).}
+
+\item{suppress_blank}{Suppress a leading blank/EOT on the first
+generated step (default TRUE); see \code{greedy_decode}.}
 
 \item{device}{Device}
 }

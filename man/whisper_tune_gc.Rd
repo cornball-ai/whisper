@@ -3,8 +3,12 @@
 \alias{whisper_tune_gc}
 \title{Tune torch's CUDA garbage collection for whisper inference}
 \usage{
-whisper_tune_gc(model = "large-v3", device = "auto", dtype = "auto",
-                footprint_gb = NULL)
+whisper_tune_gc(
+  model = "large-v3",
+  device = "auto",
+  dtype = "auto",
+  footprint_gb = NULL
+)
 }
 \arguments{
 \item{model}{Whisper model name, used to estimate the footprint when
@@ -23,7 +27,7 @@ The reserved-rate that was set (invisibly), or NULL when nothing
 }
 \description{
 Opt-in performance helper. torch's CUDA allocator invokes R's \code{gc()}
-on nearly every allocation once a loaded model occupies more than 20\\% of
+on nearly every allocation once a loaded model occupies more than 20\% of
 GPU memory (its default \code{torch.cuda_allocator_reserved_rate} floor),
 which can dominate inference time for the larger whisper models. This raises
 the floor to the model's footprint as a fraction of VRAM (clamped to at
