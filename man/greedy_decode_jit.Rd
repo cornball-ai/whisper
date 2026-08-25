@@ -3,9 +3,16 @@
 \alias{greedy_decode_jit}
 \title{Greedy Decoding with a TorchScript decode loop}
 \usage{
-greedy_decode_jit(model, encoder_output, initial_tokens, tokenizer,
-                  max_length = 224L, timestamps = FALSE,
-                  word_timestamps = FALSE, device)
+greedy_decode_jit(
+  model,
+  encoder_output,
+  initial_tokens,
+  tokenizer,
+  max_length = 224L,
+  timestamps = FALSE,
+  word_timestamps = FALSE,
+  device
+)
 }
 \arguments{
 \item{model}{WhisperModel}

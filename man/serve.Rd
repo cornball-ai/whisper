@@ -3,8 +3,15 @@
 \alias{serve}
 \title{Serve whisper over HTTP}
 \usage{
-serve(port = 7809L, model = "large-v3", device = "cuda", dtype = "auto",
-      timeout = 300L, max_body = 100L * 1024L^2, warmup = TRUE)
+serve(
+  port = 7809L,
+  model = "large-v3",
+  device = "cuda",
+  dtype = "auto",
+  timeout = 300L,
+  max_body = 100L * 1024L^2,
+  warmup = TRUE
+)
 }
 \arguments{
 \item{port}{Integer. TCP port to listen on. Default 7809 (the cornball
