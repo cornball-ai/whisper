@@ -20,8 +20,9 @@
 #'     samples in [-1, 1]. Chunks can be any length; timing is derived
 #'     from the cumulative sample count, never from chunk sizes. Returns
 #'     a list of zero or more events.
-#'   \item \code{$end()} - end of stream: flushes any open turn and
-#'     returns its final events.
+#'   \item \code{$end()} - end of stream: folds in any sub-frame audio
+#'     remainder, flushes any open turn, returns its final events, and
+#'     makes the stream terminal (further \code{$feed()} calls error).
 #'   \item \code{$close()} - drop buffers and VAD state.
 #' }
 #'
@@ -56,6 +57,11 @@
 #' @param language Language code (e.g. "en"), or NULL (default) to detect
 #'   once on the first utterance and pin for the session.
 #' @param task "transcribe" or "translate".
+#' @param sample_rate Declared input sample rate in Hz. Only 16000 is
+#'   supported; anything else errors at construction rather than being
+#'   silently transcribed at the wrong rate.
+#' @param channels Declared input channel count. Only mono (1) is
+#'   supported.
 #' @param vad "silero" (default) or "energy" (no model download; markedly
 #'   weaker endpointing, documented for offline use).
 #' @param onset_prob Speech probability that opens a speech run.
@@ -91,6 +97,8 @@ whisper_stream <- function(
   pipe,
   language = NULL,
   task = "transcribe",
+  sample_rate = 16000L,
+  channels = 1L,
   vad = c("silero", "energy"),
   onset_prob = 0.5,
   offset_prob = 0.35,
@@ -108,6 +116,17 @@ whisper_stream <- function(
 ) {
   if (!inherits(pipe, "whisper_pipeline")) {
     stop("`pipe` must be a whisper_pipeline object.", call. = FALSE)
+  }
+  # The declared audio contract is enforced, not assumed: PCM at the
+  # wrong rate transcribes into plausible text with no error, which is
+  # exactly why gpu_voice.proto makes config-first mandatory.
+  if (!identical(as.integer(sample_rate), WHISPER_SAMPLE_RATE)) {
+    stop("Only ", WHISPER_SAMPLE_RATE, " Hz input is supported (got ",
+      sample_rate, "); resample before feeding.", call. = FALSE)
+  }
+  if (!identical(as.integer(channels), 1L)) {
+    stop("Only mono input is supported (got ", channels, " channels); ",
+      "downmix before feeding.", call. = FALSE)
   }
   vad <- match.arg(vad)
 
@@ -171,22 +190,28 @@ whisper_stream <- function(
     res$events
   }
 
-  flush_turn <- function(end_frame) {
+  flush_turn <- function(end_sample, offset_ms) {
     # Everything that will ever be stable goes out before speech_ended;
-    # the flush decode covers audio up to the last speech frame.
-    end_sample <- min(end_frame * VAD_FRAME_SAMPLES,
-      st$buf_start + length(st$buf) - 1)
+    # the flush decode covers audio up to the turn's end sample.
+    end_sample <- min(end_sample, st$buf_start + length(st$buf) - 1)
     from <- st$utt_start - st$buf_start + 1
     events <- run_tick(final = TRUE,
       samples = st$buf[from:(end_sample - st$buf_start + 1)])
     events[[length(events) + 1L]] <- list(type = "speech_ended",
-      audio_offset_ms = end_frame * VAD_FRAME_MS)
-    if (verbose) message("speech_ended at ", end_frame * VAD_FRAME_MS,
-      " ms")
+      audio_offset_ms = offset_ms)
+    if (verbose) message("speech_ended at ", offset_ms, " ms")
     sd <<- stream_decoder_reset_turn(sd)
     st$utt_start <- NA
     st$decoded_upto <- 0L
     sm$silence_target_ms <<- endpoint_silence_ms
+    # The finished turn's audio is done with: dropping it both frees the
+    # buffer and puts a hard floor under the next turn's pre-roll, so a
+    # forced endpoint never decodes the same audio twice.
+    drop <- min(end_sample - st$buf_start + 1, length(st$buf))
+    if (drop > 0) {
+      st$buf <- st$buf[-seq_len(drop)]
+      st$buf_start <- st$buf_start + drop
+    }
     events
   }
 
@@ -220,7 +245,8 @@ whisper_stream <- function(
         if (verbose) message("speech onset at ",
           (ev$start_frame - 1) * VAD_FRAME_MS, " ms")
       } else if (!is.null(ev) && ev$type == "endpoint") {
-        events <- c(events, flush_turn(ev$end_frame))
+        events <- c(events, flush_turn(ev$end_frame * VAD_FRAME_SAMPLES,
+          ev$end_frame * VAD_FRAME_MS))
       }
 
       if (!is.na(st$utt_start)) {
@@ -228,7 +254,9 @@ whisper_stream <- function(
         if (utt_len >= max_utt_samples) {
           # Forced endpoint: a turn the 30 s window cannot hold splits
           # here rather than silently truncating (documented limitation).
-          events <- c(events, flush_turn(sm$last_speech_frame))
+          events <- c(events,
+            flush_turn(sm$last_speech_frame * VAD_FRAME_SAMPLES,
+              sm$last_speech_frame * VAD_FRAME_MS))
           sm$state <<- "listening"
           sm$run_start <<- NA_integer_
           sm$run_ms <<- 0
@@ -252,10 +280,19 @@ whisper_stream <- function(
       return(list())
     }
     events <- if (!is.na(st$utt_start)) {
-      flush_turn(sm$last_speech_frame)
+      # The sub-frame remainder is real audio the VAD never scored; it
+      # belongs to the flush decode, at its true sample count.
+      if (length(st$pending) > 0L) {
+        st$buf <- c(st$buf, st$pending)
+        st$pending <- numeric(0)
+      }
+      end_sample <- st$buf_start + length(st$buf) - 1
+      flush_turn(end_sample,
+        round(end_sample / WHISPER_SAMPLE_RATE * 1000))
     } else {
       list()
     }
+    st$closed <- TRUE # terminal: the stream is over, feed() now errors
     events
   }
 
