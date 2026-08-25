@@ -160,7 +160,14 @@ vad_sm_step <- function(sm, prob) {
 
   if (sm$state == "listening") {
     in_run <- !is.na(sm$run_start)
-    is_speech <- prob >= if (in_run) sm$offset_prob else sm$onset_prob
+    # Written pre-expanded: rformat's expand_if rewrites an if-else nested
+    # inside a comparison into branch assignments of the *thresholds*,
+    # which are always truthy -- silently turning every frame into speech.
+    if (in_run) {
+      is_speech <- prob >= sm$offset_prob
+    } else {
+      is_speech <- prob >= sm$onset_prob
+    }
     if (is_speech) {
       if (!in_run) {
         sm$run_start <- sm$frame
