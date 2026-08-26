@@ -234,3 +234,31 @@ expect_equal(s$end(), list())
 expect_error(s$feed(rep(0, 512)), pattern = "closed")
 expect_equal(s$end(), list())
 s$close()
+
+# --- turn speech accumulation and the punctuation gate ----------------
+
+# turn_speech_ms counts speech frames only, from the onset run, and
+# resets when the turn ends
+sm <- whisper:::vad_sm(min_speech_ms = 250, endpoint_silence_ms = 700)
+res <- run_probs(sm, rep(0.9, frames_for(250)))
+expect_equal(res$sm$turn_speech_ms, frames_for(250) * frame_ms)
+res <- run_probs(res$sm, c(rep(0.9, 10), rep(0.0, 5), rep(0.9, 10)))
+expect_equal(res$sm$turn_speech_ms,
+  (frames_for(250) + 20) * frame_ms) # the 5 silent frames don't count
+res <- run_probs(res$sm, rep(0.0, frames_for(700)))
+expect_equal(res$events[[1]]$type, "endpoint")
+expect_equal(res$sm$turn_speech_ms, 0)
+
+# silence_target: punctuation only gets authority with enough speech
+st <- function(text, speech_ms) {
+  whisper:::silence_target(text, speech_ms,
+    endpoint_silence_ms = 700, punct_silence_ms = 500,
+    midsentence_silence_ms = 1000, punct_min_speech_ms = 1000)
+}
+expect_equal(st("", 5000), 700) # no transcript: base
+expect_equal(st("Ask not what your country can do.", 2000), 500)
+expect_equal(st(" Not!", 416), 700) # the JFK fragment: no authority
+expect_equal(st("and ask what you", 2000), 1000) # mid-sentence waits
+expect_equal(st("and ask what you", 100), 1000) # gate is punct-only
+expect_equal(st("Yes.", 999), 700) # just under the gate
+expect_equal(st("Yes yes yes yes.", 1000), 500) # at the gate

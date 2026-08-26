@@ -159,7 +159,8 @@ vad_sm <- function(
     run_start = NA_integer_, # first frame of the current speech run
     run_ms = 0, # length of the current speech run (listening)
     silence_ms = 0, # trailing non-speech (in_speech)
-    last_speech_frame = NA_integer_ # last frame that scored as speech
+    last_speech_frame = NA_integer_, # last frame that scored as speech
+    turn_speech_ms = 0 # speech accumulated in the open turn
   )
 }
 
@@ -191,6 +192,7 @@ vad_sm_step <- function(sm, prob) {
       if (sm$run_ms >= sm$min_speech_ms) {
         sm$state <- "in_speech"
         sm$silence_ms <- 0
+        sm$turn_speech_ms <- sm$run_ms
         event <- list(type = "onset", start_frame = sm$run_start)
       }
     } else {
@@ -201,6 +203,7 @@ vad_sm_step <- function(sm, prob) {
     if (prob >= sm$offset_prob) {
       sm$silence_ms <- 0
       sm$last_speech_frame <- sm$frame
+      sm$turn_speech_ms <- sm$turn_speech_ms + VAD_FRAME_MS
     } else {
       sm$silence_ms <- sm$silence_ms + VAD_FRAME_MS
       if (sm$silence_ms >= sm$silence_target_ms) {
@@ -209,6 +212,7 @@ vad_sm_step <- function(sm, prob) {
         sm$run_start <- NA_integer_
         sm$run_ms <- 0
         sm$silence_ms <- 0
+        sm$turn_speech_ms <- 0
         sm$silence_target_ms <- sm$endpoint_silence_ms
       }
     }
