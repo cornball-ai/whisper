@@ -16,6 +16,7 @@ whisper_stream(
   endpoint_silence_ms = 700,
   punct_silence_ms = 500,
   midsentence_silence_ms = 1000,
+  punct_min_speech_ms = 1000,
   pre_roll_ms = 320,
   decode_interval_ms = 1000,
   max_utterance_s = 28,
@@ -56,6 +57,12 @@ turn.}
 sentence.}
 
 \item{midsentence_silence_ms}{Silence target mid-sentence.}
+
+\item{punct_min_speech_ms}{Speech the turn must hold before terminal
+punctuation is allowed to shorten the timer; below it an apparent
+sentence end uses \code{endpoint_silence_ms}. A very short turn's
+transcript is the least trustworthy evidence in the stream, so its
+punctuation gets no authority over the endpoint.}
 
 \item{pre_roll_ms}{Audio kept from before the detected onset.}
 
@@ -112,9 +119,11 @@ last speech frame in the stream.
 Endpointing runs on the Silero VAD model (downloaded on first use, ~2
 MB, see \code{\link{download_vad_model}}) with an adaptive silence
 timer: a tail that reads as a finished sentence endpoints after
-\code{punct_silence_ms}, a mid-sentence pause waits
-\code{midsentence_silence_ms}, and \code{endpoint_silence_ms} applies
-while there is no transcript yet. Incremental transcription commits
+\code{punct_silence_ms} (but only once the turn holds
+\code{punct_min_speech_ms} of speech -- a shorter turn's transcript is
+too untrustworthy for its punctuation to shorten the timer), a
+mid-sentence pause waits \code{midsentence_silence_ms}, and
+\code{endpoint_silence_ms} applies while there is no transcript yet. Incremental transcription commits
 what two consecutive decodes agree on (LocalAgreement-2), with
 committed tokens forced as the decoder prefix so stable text is never
 contradicted.
