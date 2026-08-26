@@ -1,3 +1,9 @@
+# whisper 0.6.0.1
+
+* Terminal punctuation shortens the endpointing silence timer only once
+  the turn holds `punct_min_speech_ms` (default 1000) of speech; a very
+  short turn's garbled tail can no longer hair-trigger the endpoint.
+
 # whisper 0.6.0
 
 * New `whisper_stream()`: live streaming transcription with endpointing.
