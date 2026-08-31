@@ -3,12 +3,16 @@
 \alias{download_whisper_model}
 \title{Download Model from HuggingFace}
 \usage{
-download_whisper_model(model = "tiny", force = FALSE)
+download_whisper_model(model = "tiny", force = FALSE, revision = NULL)
 }
 \arguments{
 \item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
 
 \item{force}{Re-download even if exists}
+
+\item{revision}{Optional exact 40-hex commit. Every file is fetched at that
+one revision, so the resulting cache entry is a single self-contained
+snapshot directory.}
 }
 \value{
 Path to model directory (invisibly)

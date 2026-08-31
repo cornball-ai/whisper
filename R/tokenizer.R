@@ -7,6 +7,8 @@
 #' Load or create a Whisper tokenizer from HuggingFace vocab files.
 #'
 #' @param model Model name for vocab lookup
+#' @param revision Optional exact 40-hex commit. The vocab files resolve out of
+#'   that snapshot directory, matching weights loaded at the same revision.
 #' @return Tokenizer object (list with encode/decode functions)
 #' @export
 #' @examples
@@ -18,9 +20,9 @@
 #'   tok$decode(c(50258, 50259, 50359, 50363))
 #' }
 #' }
-whisper_tokenizer <- function(model = "tiny") {
+whisper_tokenizer <- function(model = "tiny", revision = NULL) {
   # Ensure vocab files are downloaded
-  vocab_dir <- ensure_tokenizer_files(model)
+  vocab_dir <- ensure_tokenizer_files(model, revision = revision)
 
   # Load vocab and merges
   vocab_file <- file.path(vocab_dir, "vocab.json")
@@ -309,18 +311,25 @@ decode_bpe_bytes <- function(text) {
 #' Ensure Tokenizer Files are Downloaded
 #'
 #' @param model Model name
+#' @param revision Optional exact 40-hex commit to resolve against. Threaded
+#'   through with the weights: a snapshot bound read-only holds the tokenizer
+#'   too, and resolving the weights by commit while resolving the tokenizer by
+#'   branch would half-pin the model and fail on the half nobody pinned.
 #' @return Path to vocab directory (directory containing vocab.json)
-ensure_tokenizer_files <- function(model) {
+ensure_tokenizer_files <- function(model, revision = NULL) {
   cfg <- whisper_config(model)
   repo <- cfg$hf_repo
+  rev <- .whisper_rev(revision)
 
   # Check if files exist locally (do NOT download without consent)
   vocab_file <- tryCatch(
-    hfhub::hub_download(repo, "vocab.json", local_files_only = TRUE),
+    do.call(hfhub::hub_download,
+            c(list(repo, "vocab.json", local_files_only = TRUE), rev)),
     error = function(e) NULL
   )
   merges_file <- tryCatch(
-    hfhub::hub_download(repo, "merges.txt", local_files_only = TRUE),
+    do.call(hfhub::hub_download,
+            c(list(repo, "merges.txt", local_files_only = TRUE), rev)),
     error = function(e) NULL
   )
 
@@ -339,14 +348,16 @@ ensure_tokenizer_files <- function(model) {
 #' Download Tokenizer Files from HuggingFace
 #'
 #' @param model Model name
-download_tokenizer_files <- function(model) {
+#' @param revision Optional exact 40-hex commit to resolve against.
+download_tokenizer_files <- function(model, revision = NULL) {
   cfg <- whisper_config(model)
   repo <- cfg$hf_repo
+  rev <- .whisper_rev(revision)
 
   message("Downloading tokenizer files for ", model, " via hfhub...")
 
-  hfhub::hub_download(repo, "vocab.json")
-  hfhub::hub_download(repo, "merges.txt")
+  do.call(hfhub::hub_download, c(list(repo, "vocab.json"), rev))
+  do.call(hfhub::hub_download, c(list(repo, "merges.txt"), rev))
 
   message("Tokenizer files downloaded")
 }

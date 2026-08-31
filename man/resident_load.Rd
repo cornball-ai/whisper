@@ -8,7 +8,8 @@ resident_load(
   device = "cuda",
   dtype = "auto",
   download = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 )
 }
 \arguments{
@@ -26,6 +27,12 @@ for every later transition and synchronize.}
 \item{download}{Download the model if not cached (default TRUE).}
 
 \item{verbose}{Print progress messages.}
+
+\item{revision}{Optional exact 40-hex commit. Every file this load reads --
+weights, config, tokenizer -- is resolved at that one revision, so the
+load works against a cache holding only that snapshot directory: no
+`refs/` entry, no network. The revision is also verified against the
+path the weights actually came from before it enters the identity.}
 }
 \value{
 A `whisper_resident` handle (an environment). Fields of

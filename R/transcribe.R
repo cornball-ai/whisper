@@ -12,6 +12,9 @@
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param download If TRUE and model not present, prompt to download.
 #' @param verbose Print loading messages.
+#' @param revision Optional exact 40-hex commit. Weights, config and tokenizer
+#'   all resolve at that one revision, so the pipeline builds against a cache
+#'   holding only that snapshot directory.
 #' @return A \code{whisper_pipeline} object with a \code{$transcribe()} method.
 #' @export
 #' @examples
@@ -26,14 +29,15 @@ whisper_pipeline <- function(
   device = "auto",
   dtype = "auto",
   download = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 ) {
   device <- parse_device(device)
   dtype <- parse_dtype(dtype, device)
 
   whisper <- load_whisper_model(model, device = device, dtype = dtype,
-    download = download, verbose = verbose)
-  tokenizer <- whisper_tokenizer(model)
+    download = download, verbose = verbose, revision = revision)
+  tokenizer <- whisper_tokenizer(model, revision = revision)
   config <- whisper_config(model)
 
   pipe <- list(

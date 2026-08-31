@@ -3,10 +3,12 @@
 \alias{get_model_path}
 \title{Get Model Cache Path}
 \usage{
-get_model_path(model)
+get_model_path(model, revision = NULL)
 }
 \arguments{
 \item{model}{Model name}
+
+\item{revision}{Optional exact 40-hex commit to resolve against.}
 }
 \value{
 Path to model directory in hfhub cache

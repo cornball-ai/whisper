@@ -3,10 +3,12 @@
 \alias{get_weights_path}
 \title{Get Path to Model Weights}
 \usage{
-get_weights_path(model)
+get_weights_path(model, revision = NULL)
 }
 \arguments{
 \item{model}{Model name}
+
+\item{revision}{Optional exact 40-hex commit to resolve against.}
 }
 \value{
 Path to safetensors file
