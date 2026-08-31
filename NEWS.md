@@ -1,3 +1,26 @@
+# whisper 0.6.0.2
+
+* Every entry point that reaches the hub takes a `revision`, and it must
+  be a 40-hex commit. The default `"main"` is a BRANCH: hfhub resolves it
+  through `refs/main` and, failing that, over the network, so a model
+  served from a read-only snapshot bind -- the container case, where
+  `refs/` is a sibling of `snapshots/` and is not part of the mount --
+  could not load at all. An exact commit takes hfhub straight to
+  `snapshots/<revision>/<file>` and never reads `refs/`.
+
+  `revision` threads through `load_whisper_model()`, `resident_load()`,
+  `whisper_pipeline()`, `whisper_tokenizer()`, `get_model_path()`,
+  `model_exists()`, `get_weights_path()` and both tokenizer fetchers --
+  weights, config, tokenizer and auxiliary files alike. Threading it
+  partway is worse than not at all: the weights would resolve at the
+  pinned commit while the tokenizer still reached for the network.
+
+  `get_weights_path()` also verifies that the RESOLVED path names the
+  requested snapshot, and `model_exists()` validates the revision
+  OUTSIDE its `tryCatch`. Inside it, a refused branch was
+  indistinguishable from a model that is merely not cached, and the
+  caller answered by trying to download it.
+
 # whisper 0.6.0.1
 
 * Terminal punctuation shortens the endpointing silence timer only once
