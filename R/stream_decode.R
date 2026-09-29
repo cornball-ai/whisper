@@ -34,6 +34,34 @@ ends_sentence <- function(text) {
   grepl("[.?!…。？！]['\")”’]?\\s*$", text)
 }
 
+# The silence target for the current tick (pure; unit-tested). Terminal
+# punctuation shortens the timer only once the turn holds at least
+# punct_min_speech_ms of actual speech: on a shorter turn the transcript
+# is the least trustworthy evidence in the stream (a garbled 400 ms
+# fragment reading " Not!" is how JFK's opening lost its first words),
+# so an apparent sentence end there falls back to the no-transcript
+# target instead of being given authority over the endpoint.
+silence_target <- function(
+  text,
+  turn_speech_ms,
+  endpoint_silence_ms,
+  punct_silence_ms,
+  midsentence_silence_ms,
+  punct_min_speech_ms
+) {
+  if (!nzchar(text)) {
+    endpoint_silence_ms
+  } else if (ends_sentence(text)) {
+    if (turn_speech_ms >= punct_min_speech_ms) {
+      punct_silence_ms
+    } else {
+      endpoint_silence_ms
+    }
+  } else {
+    midsentence_silence_ms
+  }
+}
+
 # Per-turn decoder state. `committed` are content token ids already
 # forced as the decoder prefix; `prev_tail` is the previous decode's
 # uncommitted content (the other half of the LocalAgreement-2

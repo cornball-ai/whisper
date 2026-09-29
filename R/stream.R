@@ -42,9 +42,11 @@
 #' Endpointing runs on the Silero VAD model (downloaded on first use, ~2
 #' MB, see \code{\link{download_vad_model}}) with an adaptive silence
 #' timer: a tail that reads as a finished sentence endpoints after
-#' \code{punct_silence_ms}, a mid-sentence pause waits
-#' \code{midsentence_silence_ms}, and \code{endpoint_silence_ms} applies
-#' while there is no transcript yet. Incremental transcription commits
+#' \code{punct_silence_ms} (but only once the turn holds
+#' \code{punct_min_speech_ms} of speech -- a shorter turn's transcript is
+#' too untrustworthy for its punctuation to shorten the timer), a
+#' mid-sentence pause waits \code{midsentence_silence_ms}, and
+#' \code{endpoint_silence_ms} applies while there is no transcript yet. Incremental transcription commits
 #' what two consecutive decodes agree on (LocalAgreement-2), with
 #' committed tokens forced as the decoder prefix so stable text is never
 #' contradicted.
@@ -72,6 +74,11 @@
 #' @param punct_silence_ms Silence target when the transcript tail ends a
 #'   sentence.
 #' @param midsentence_silence_ms Silence target mid-sentence.
+#' @param punct_min_speech_ms Speech the turn must hold before terminal
+#'   punctuation is allowed to shorten the timer; below it an apparent
+#'   sentence end uses \code{endpoint_silence_ms}. A very short turn's
+#'   transcript is the least trustworthy evidence in the stream, so its
+#'   punctuation gets no authority over the endpoint.
 #' @param pre_roll_ms Audio kept from before the detected onset.
 #' @param decode_interval_ms New audio per incremental decode.
 #' @param max_utterance_s Forced-endpoint cap on a single turn.
@@ -106,6 +113,7 @@ whisper_stream <- function(
   endpoint_silence_ms = 700,
   punct_silence_ms = 500,
   midsentence_silence_ms = 1000,
+  punct_min_speech_ms = 1000,
   pre_roll_ms = 320,
   decode_interval_ms = 1000,
   max_utterance_s = 28,
@@ -179,14 +187,12 @@ whisper_stream <- function(
       final_temperatures = final_temperatures,
       final_beam_size = final_beam_size)
     sd <<- res$sd
-    # Adapt the silence target to how finished the transcript sounds.
-    sm$silence_target_ms <<- if (!nzchar(res$text)) {
-      endpoint_silence_ms
-    } else if (ends_sentence(res$text)) {
-      punct_silence_ms
-    } else {
-      midsentence_silence_ms
-    }
+    # Adapt the silence target to how finished the transcript sounds
+    # (punctuation only gets authority once the turn holds enough speech
+    # to make its transcript trustworthy).
+    sm$silence_target_ms <<- silence_target(res$text, sm$turn_speech_ms,
+      endpoint_silence_ms, punct_silence_ms, midsentence_silence_ms,
+      punct_min_speech_ms)
     res$events
   }
 
@@ -261,6 +267,7 @@ whisper_stream <- function(
           sm$run_start <<- NA_integer_
           sm$run_ms <<- 0
           sm$silence_ms <<- 0
+          sm$turn_speech_ms <<- 0
         } else if (utt_len - st$decoded_upto >= interval_samples) {
           events <- c(events, run_tick())
           st$decoded_upto <- utt_len
