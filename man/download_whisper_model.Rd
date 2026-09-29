@@ -6,7 +6,8 @@
 download_whisper_model(model = "tiny", force = FALSE, revision = NULL)
 }
 \arguments{
-\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
+\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3",
+"large-v3-turbo"}
 
 \item{force}{Re-download even if exists}
 

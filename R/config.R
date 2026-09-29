@@ -2,7 +2,8 @@
 #'
 #' Get configuration for a Whisper model variant.
 #'
-#' @param model Character. Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Character. Model name: "tiny", "base", "small", "medium",
+#'   "large-v3", "large-v3-turbo"
 #' @return List with model configuration parameters
 #' @export
 #' @examples
@@ -97,6 +98,23 @@ whisper_config <- function(model = "tiny") {
       alignment_heads = matrix(c(
         9, 19, 11, 2, 11, 4, 11, 17, 22, 7, 22, 11, 22, 17, 23, 2, 23, 15
       ), ncol = 2, byrow = TRUE)
+    ),
+    # large-v3's encoder with the decoder pruned from 32 layers to 4
+    `large-v3-turbo` = list(
+      n_mels = 128L,
+      n_audio_ctx = 1500L,
+      n_audio_state = 1280L,
+      n_audio_head = 20L,
+      n_audio_layer = 32L,
+      n_vocab = 51866L,
+      n_text_ctx = 448L,
+      n_text_state = 1280L,
+      n_text_head = 20L,
+      n_text_layer = 4L,
+      hf_repo = "openai/whisper-large-v3-turbo",
+      alignment_heads = matrix(c(
+        2, 4, 2, 11, 3, 3, 3, 6, 3, 11, 3, 14
+      ), ncol = 2, byrow = TRUE)
     )
   )
 
@@ -118,8 +136,9 @@ whisper_config <- function(model = "tiny") {
 #' @param model Model name (default: "tiny")
 #' @return Named list of special token IDs
 whisper_special_tokens <- function(model = "tiny") {
-  # large-v3 has extra language tokens that shift IDs by 1
-  if (model == "large-v3") {
+  # The 51866-token vocab (large-v3, large-v3-turbo) adds a language token
+  # that shifts every ID from translate onward by 1
+  if (whisper_config(model)$n_vocab == 51866L) {
     list(
       sot = 50258L, eot = 50257L, translate = 50359L,
       transcribe = 50360L, sot_lm = 50361L, sot_prev = 50362L,

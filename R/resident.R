@@ -244,7 +244,8 @@
 #' fp16 (GTX 16-series), which get float32. The pinned copies are stored at
 #' the resolved dtype, so activation moves exactly the bytes inference needs.
 #'
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param device Target CUDA device for activation (default "cuda").
 #'   Residency requires CUDA; pinned host memory exists to feed it. A bare
 #'   "cuda" is resolved to the current device's explicit index at load

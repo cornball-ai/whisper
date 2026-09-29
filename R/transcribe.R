@@ -7,7 +7,8 @@
 #' Load the model, tokenizer, and config once. Call \code{$transcribe()}
 #' repeatedly without reloading.
 #'
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param device Device: "auto", "cpu", "cuda"
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param download If TRUE and model not present, prompt to download.
@@ -165,10 +166,13 @@ pipeline_transcribe <- function(
 #' load the model once.
 #'
 #' @param file Path to audio file (WAV, MP3, etc.)
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param language Language code (e.g., "en", "es"), or NULL (default) for
 #'   auto-detection from the audio.
-#' @param task "transcribe" or "translate" (translate to English)
+#' @param task "transcribe" or "translate" (translate to English).
+#'   "large-v3-turbo" was not trained to translate and returns the source
+#'   language.
 #' @param timestamps If TRUE, return segment-level timestamps
 #' @param word_timestamps If TRUE, return word-level timestamps (implies timestamps)
 #' @param beam_size Number of beams for beam search (1 = greedy, default)

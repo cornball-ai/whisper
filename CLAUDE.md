@@ -17,6 +17,7 @@ Audio (WAV/MP3) -> Mel Spectrogram -> Encoder (transformer) -> Decoder (cross-at
 | small | 12 | 768 | 12 | 3072 | 244M | 80 |
 | medium | 24 | 1024 | 16 | 4096 | 769M | 80 |
 | large-v3 | 32 | 1280 | 20 | 5120 | 1550M | 128 |
+| large-v3-turbo | 32 enc / 4 dec | 1280 | 20 | 5120 | 809M | 128 |
 
 ## Key Exports
 
@@ -69,6 +70,7 @@ Uses safetensors format from HuggingFace:
 - `openai/whisper-small`
 - `openai/whisper-medium`
 - `openai/whisper-large-v3`
+- `openai/whisper-large-v3-turbo`
 
 ## File Structure
 
@@ -93,7 +95,7 @@ Uses safetensors format from HuggingFace:
 ### Features
 
 - Transcription and translation (any language to English)
-- All model sizes: tiny, base, small, medium, large-v3
+- All model sizes: tiny, base, small, medium, large-v3, large-v3-turbo
 - CPU and CUDA support
 - Segment-level timestamps (Whisper timestamp tokens with logit suppression)
 - Word-level timestamps (cross-attention DTW alignment)

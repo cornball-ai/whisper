@@ -9,7 +9,8 @@
 #' of audio.
 #'
 #' @param file Path to audio file (WAV, MP3, etc.)
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param device Device: "auto", "cpu", "cuda"
 #' @param dtype Data type: "auto", "float16", "float32"
 #' @param top_k Number of top language probabilities to return (default: 5)

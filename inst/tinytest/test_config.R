@@ -13,9 +13,28 @@ expect_equal(cfg$n_audio_state, 384L)
 expect_equal(cfg$n_audio_layer, 4L)
 
 # Test all model configs exist
-for (model in c("tiny", "base", "small", "medium", "large-v3")) {
+for (model in list_whisper_models()) {
   expect_silent(whisper_config(model))
 }
+
+# large-v3-turbo: large-v3's encoder, a 4-layer decoder
+turbo <- whisper_config("large-v3-turbo")
+v3 <- whisper_config("large-v3")
+for (k in c("n_mels", "n_audio_state", "n_audio_head", "n_audio_layer",
+            "n_vocab", "n_text_state", "n_text_head")) {
+  expect_equal(turbo[[k]], v3[[k]], info = k)
+}
+expect_equal(turbo$n_text_layer, 4L)
+expect_true(all(turbo$alignment_heads[, 1] < turbo$n_text_layer))
+expect_true(all(turbo$alignment_heads[, 2] < turbo$n_text_head))
+
+# Special tokens follow the vocab: the 51866-token models share one table
+expect_identical(whisper:::whisper_special_tokens("large-v3-turbo"),
+                 whisper:::whisper_special_tokens("large-v3"))
+expect_equal(whisper:::whisper_special_tokens("large-v3-turbo")$timestamp_begin,
+             50365L)
+expect_equal(whisper:::whisper_special_tokens("medium")$timestamp_begin,
+             50364L)
 
 # Test invalid model
 expect_error(whisper_config("invalid"))
