@@ -78,6 +78,10 @@ whisper_model <- torch::nn_module(
 #' @param dtype Data type ("auto", "float16", "float32")
 #' @param download If TRUE and model not present, prompt to download
 #' @param verbose Print loading messages
+#' @param revision Optional exact 40-hex commit to load. With one, the weights
+#'   resolve straight out of \code{snapshots/<revision>/}, so loading works
+#'   against a cache that holds only that snapshot -- no \code{refs/} entry and
+#'   no network.
 #' @return WhisperModel module
 #' @export
 #' @examples
@@ -92,17 +96,18 @@ load_whisper_model <- function(
   device = "auto",
   dtype = "auto",
   download = FALSE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 ) {
   # Parse device and dtype
   device <- parse_device(device)
   dtype <- parse_dtype(dtype, device)
 
   # Check if model exists
-  if (!model_exists(model)) {
+  if (!model_exists(model, revision = revision)) {
     if (download) {
       # download_whisper_model handles interactive consent
-      download_whisper_model(model)
+      download_whisper_model(model, revision = revision)
     } else {
       stop(
         "Model '", model, "' not found. ",
@@ -118,7 +123,7 @@ load_whisper_model <- function(
   whisper <- whisper_model(config)
 
   # Load weights
-  weights_path <- get_weights_path(model)
+  weights_path <- get_weights_path(model, revision = revision)
   load_whisper_weights(whisper, weights_path, verbose = verbose)
 
   # Move to device and dtype

@@ -8,7 +8,8 @@ whisper_pipeline(
   device = "auto",
   dtype = "auto",
   download = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 )
 }
 \arguments{
@@ -21,6 +22,10 @@ whisper_pipeline(
 \item{download}{If TRUE and model not present, prompt to download.}
 
 \item{verbose}{Print loading messages.}
+
+\item{revision}{Optional exact 40-hex commit. Weights, config and tokenizer
+all resolve at that one revision, so the pipeline builds against a cache
+holding only that snapshot directory.}
 }
 \value{
 A \code{whisper_pipeline} object with a \code{$transcribe()} method.

@@ -8,7 +8,8 @@ load_whisper_model(
   device = "auto",
   dtype = "auto",
   download = FALSE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 )
 }
 \arguments{
@@ -21,6 +22,11 @@ load_whisper_model(
 \item{download}{If TRUE and model not present, prompt to download}
 
 \item{verbose}{Print loading messages}
+
+\item{revision}{Optional exact 40-hex commit to load. With one, the weights
+resolve straight out of \code{snapshots/<revision>/}, so loading works
+against a cache that holds only that snapshot -- no \code{refs/} entry and
+no network.}
 }
 \value{
 WhisperModel module

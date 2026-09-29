@@ -3,10 +3,14 @@
 \alias{model_exists}
 \title{Check if Model is Downloaded}
 \usage{
-model_exists(model)
+model_exists(model, revision = NULL)
 }
 \arguments{
 \item{model}{Model name}
+
+\item{revision}{Optional exact 40-hex commit to resolve against. With one,
+this answers about that snapshot and needs neither a \code{refs/} entry
+nor the network.}
 }
 \value{
 TRUE if model weights exist locally

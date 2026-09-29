@@ -3,10 +3,13 @@
 \alias{whisper_tokenizer}
 \title{Create Whisper Tokenizer}
 \usage{
-whisper_tokenizer(model = "tiny")
+whisper_tokenizer(model = "tiny", revision = NULL)
 }
 \arguments{
 \item{model}{Model name for vocab lookup}
+
+\item{revision}{Optional exact 40-hex commit. The vocab files resolve out of
+that snapshot directory, matching weights loaded at the same revision.}
 }
 \value{
 Tokenizer object (list with encode/decode functions)

@@ -254,6 +254,11 @@
 #'   `device`.
 #' @param download Download the model if not cached (default TRUE).
 #' @param verbose Print progress messages.
+#' @param revision Optional exact 40-hex commit. Every file this load reads --
+#'   weights, config, tokenizer -- is resolved at that one revision, so the
+#'   load works against a cache holding only that snapshot directory: no
+#'   `refs/` entry, no network. The revision is also verified against the
+#'   path the weights actually came from before it enters the identity.
 #'
 #' @return A `whisper_resident` handle (an environment). Fields of
 #'   interest via [resident_status()]: state, byte counts, and a
@@ -279,7 +284,8 @@ resident_load <- function(
   device = "cuda",
   dtype = "auto",
   download = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  revision = NULL
 ) {
   target <- parse_device(device)
   if (target$type != "cuda") {
@@ -301,8 +307,9 @@ resident_load <- function(
   # Build on CPU at the TARGET dtype; the device move is what
   # resident_activate() exists for.
   whisper <- load_whisper_model(model, device = torch::torch_device("cpu"),
-    dtype = resolved_dtype, download = download, verbose = verbose)
-  tokenizer <- whisper_tokenizer(model)
+    dtype = resolved_dtype, download = download, verbose = verbose,
+    revision = revision)
+  tokenizer <- whisper_tokenizer(model, revision = revision)
   config <- whisper_config(model)
 
   manifest <- .resident_manifest(whisper)
@@ -334,7 +341,7 @@ resident_load <- function(
     }
   }
 
-  weights_path <- get_weights_path(model)
+  weights_path <- get_weights_path(model, revision = revision)
   if (verbose) message("Hashing weights (sha256)")
   identity <- list(
     model = model,
