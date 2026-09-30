@@ -15,6 +15,7 @@ models <- list_whisper_models()
 expect_true("tiny" %in% models)
 expect_true("small" %in% models)
 expect_true("large-v3" %in% models)
+expect_true("large-v3-turbo" %in% models)
 
 # Test extract_segments with synthetic token sequences
 # Use tiny model token IDs (timestamp_begin = 50364)

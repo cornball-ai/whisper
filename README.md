@@ -50,7 +50,8 @@ download_whisper_model("tiny")
 
 # List available models
 list_whisper_models()
-#> [1] "tiny" "base" "small" "medium" "large-v3"
+#> [1] "tiny"           "base"           "small"          "medium"
+#> [5] "large-v3"       "large-v3-turbo"
 
 # Check which models are downloaded
 list_downloaded_models()
@@ -150,6 +151,12 @@ It's built on base R sockets (no extra dependencies). A systemd unit ships in
 | small | 244M | 967 MB | ~5% | 1,454 MiB | 1.2s |
 | medium | 769M | 3.0 GB | ~4% | 3,580 MiB | 1.3s |
 | large-v3 | 1550M | 6.2 GB | ~3% | 3,892 MiB | 2.7s |
+| large-v3-turbo | 809M | 1.6 GB (fp16) | – | – | – |
+
+`large-v3-turbo` is large-v3's encoder with the decoder cut from 32 layers to
+4, so decoding is several times faster. OpenAI fine-tuned it on transcription
+only: `task = "translate"` returns the source language rather than English.
+Use large-v3 or medium for translation.
 
 *Speed is a warm transcribe of a 17s clip on an RTX 5060 Ti with
 `word_timestamps = TRUE` (the heavier path; plain greedy is several times

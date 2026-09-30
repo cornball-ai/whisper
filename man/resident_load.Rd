@@ -13,7 +13,8 @@ resident_load(
 )
 }
 \arguments{
-\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
+\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3",
+"large-v3-turbo"}
 
 \item{device}{Target CUDA device for activation (default "cuda").
 Residency requires CUDA; pinned host memory exists to feed it. A bare

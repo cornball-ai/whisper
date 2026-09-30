@@ -9,7 +9,8 @@
   base = 290,
   small = 967,
   medium = 3055,
-  `large-v3` = 6174
+  `large-v3` = 6174,
+  `large-v3-turbo` = 1618
 )
 
 # The revision every hub call in this package resolves against.
@@ -93,7 +94,8 @@ model_exists <- function(model, revision = NULL) {
 #' Download Whisper model weights and tokenizer files from HuggingFace.
 #' In interactive sessions, asks for user consent before downloading.
 #'
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param force Re-download even if exists
 #' @param revision Optional exact 40-hex commit. Every file is fetched at that
 #'   one revision, so the resulting cache entry is a single self-contained
@@ -229,7 +231,7 @@ get_weights_path <- function(model, revision = NULL) {
 #' @examples
 #' list_whisper_models()
 list_whisper_models <- function() {
-  c("tiny", "base", "small", "medium", "large-v3")
+  c("tiny", "base", "small", "medium", "large-v3", "large-v3-turbo")
 }
 
 #' List Downloaded Models

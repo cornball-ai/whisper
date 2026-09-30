@@ -26,12 +26,15 @@ transcribe(
 \arguments{
 \item{file}{Path to audio file (WAV, MP3, etc.)}
 
-\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
+\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3",
+"large-v3-turbo"}
 
 \item{language}{Language code (e.g., "en", "es"), or NULL (default) for
 auto-detection from the audio.}
 
-\item{task}{"transcribe" or "translate" (translate to English)}
+\item{task}{"transcribe" or "translate" (translate to English).
+"large-v3-turbo" was not trained to translate and returns the source
+language.}
 
 \item{timestamps}{If TRUE, return segment-level timestamps}
 

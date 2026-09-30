@@ -6,7 +6,8 @@
 whisper_config(model = "tiny")
 }
 \arguments{
-\item{model}{Character. Model name: "tiny", "base", "small", "medium", "large-v3"}
+\item{model}{Character. Model name: "tiny", "base", "small", "medium",
+"large-v3", "large-v3-turbo"}
 }
 \value{
 List with model configuration parameters

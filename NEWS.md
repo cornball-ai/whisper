@@ -1,3 +1,11 @@
+# whisper 0.6.0.3
+
+* New model `"large-v3-turbo"` (`openai/whisper-large-v3-turbo`, #40):
+  large-v3's encoder with a 4-layer decoder, 809M parameters, 1.6 GB.
+  It transcribes only; `task = "translate"` returns the source language.
+* Special token IDs now follow the model's vocab size rather than the
+  name `"large-v3"`, so every 51866-token model gets the shifted table.
+
 # whisper 0.6.0.2
 
 * Every entry point that reaches the hub takes a `revision`, and it must

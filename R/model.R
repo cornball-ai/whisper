@@ -73,7 +73,8 @@ whisper_model <- torch::nn_module(
 #'
 #' Load a Whisper model with weights from HuggingFace.
 #'
-#' @param model Model name: "tiny", "base", "small", "medium", "large-v3"
+#' @param model Model name: "tiny", "base", "small", "medium", "large-v3",
+#'   "large-v3-turbo"
 #' @param device Device to load model on ("auto", "cpu", "cuda")
 #' @param dtype Data type ("auto", "float16", "float32")
 #' @param download If TRUE and model not present, prompt to download

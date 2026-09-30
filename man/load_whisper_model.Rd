@@ -13,7 +13,8 @@ load_whisper_model(
 )
 }
 \arguments{
-\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3"}
+\item{model}{Model name: "tiny", "base", "small", "medium", "large-v3",
+"large-v3-turbo"}
 
 \item{device}{Device to load model on ("auto", "cpu", "cuda")}
 
