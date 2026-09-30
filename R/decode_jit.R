@@ -319,7 +319,8 @@ greedy_decode_jit <- function(
       # cur_xattn is the cross-attn of the forward that predicted this token
       # (matching the eager path's per-step collection order).
       if (need_w) {
-        all_cross_attn <- c(all_cross_attn, list(cur_xattn))
+        all_cross_attn <- c(all_cross_attn,
+          list(.step_alignment_row(model, cur_xattn)))
       }
       if (length(generated) >= max_length) break
 

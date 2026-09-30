@@ -598,9 +598,10 @@ greedy_decode <- function(
         # Append token
         generated <- c(generated, next_token_id)
 
-        # Collect cross-attention weights for this step
+        # Collect this step's alignment row for word timestamps
         if (word_timestamps && !is.null(result$cross_attn_weights)) {
-          all_cross_attn <- c(all_cross_attn, list(result$cross_attn_weights))
+          all_cross_attn <- c(all_cross_attn,
+            list(.step_alignment_row(model, result$cross_attn_weights)))
         }
 
         # Prepare next input (decoder expects 0-indexed token IDs, adds 1 internally)
@@ -1157,7 +1158,8 @@ sample_decode <- function(
       generated <- c(generated, next_token_id)
 
       if (word_timestamps && !is.null(result$cross_attn_weights)) {
-        all_cross_attn <- c(all_cross_attn, list(result$cross_attn_weights))
+        all_cross_attn <- c(all_cross_attn,
+          list(.step_alignment_row(model, result$cross_attn_weights)))
       }
 
       tokens <- torch::torch_tensor(matrix(next_token_id, nrow = 1L),
@@ -1211,7 +1213,8 @@ forced_decode <- function(
       kv_cache <- result$kv_cache
 
       if (i > 1 && !is.null(result$cross_attn_weights)) {
-        all_cross_attn <- c(all_cross_attn, list(result$cross_attn_weights))
+        all_cross_attn <- c(all_cross_attn,
+          list(.step_alignment_row(model, result$cross_attn_weights)))
       }
     }
   })
@@ -1608,6 +1611,14 @@ decode_with_fallback <- function(
         decode_result$no_speech_prob > no_speech_threshold &&
         !is.na(avg_logprob) && avg_logprob < logprob_threshold) {
       needs_fallback <- FALSE
+    }
+    # The attempt's KV caches and per-step tensors are dead now but held
+    # until R collects, and by then they have survived minor collections, so
+    # only a full one frees them. On a GPU, collect once per attempt (~70 ms
+    # against seconds of decoding) so a retry or the next window does not
+    # stack on top of them.
+    if (device$type == "cuda") {
+      invisible(gc(full = TRUE))
     }
     if (!needs_fallback) {
       return(decode_result)

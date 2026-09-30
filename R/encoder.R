@@ -137,16 +137,109 @@ whisper_encoder_layer <- torch::nn_module(
   },
 
   forward = function(x) {
-    # Self-attention with residual
-    attn_result <- self$attn(self$attn_ln(x))
-    x <- x + attn_result$output
+    fn <- make_encoder_layer_fn(self$attn$n_head, self$attn$head_dim)
+    do.call(fn, c(list(x), self$weights()))
+  },
 
-    # FFN with residual
-    x <- x + self$mlp(self$mlp_ln(x))
-
-    x
+  # The layer's tensors in encoder_layer_fn()'s argument order.
+  weights = function() {
+    list(self$attn_ln$weight, self$attn_ln$bias,
+      self$attn$query$weight, self$attn$query$bias,
+      self$attn$key$weight,
+      self$attn$value$weight, self$attn$value$bias,
+      self$attn$out$weight, self$attn$out$bias,
+      self$mlp_ln$weight, self$mlp_ln$bias,
+      self$mlp[[1]]$weight, self$mlp[[1]]$bias,
+      self$mlp[[3]]$weight, self$mlp[[3]]$bias)
   }
 )
+
+#' One Encoder Layer as a Function of Tensors
+#'
+#' Pre-norm self-attention (no mask) then a GELU MLP, each with a residual:
+#' the computation of whisper_encoder_layer, written so that every input is
+#' a tensor. One traced copy can then serve every layer, with the layer's
+#' weights passed in (see encoder_layer_fn_for()). The sequence length is
+#' never read, so a trace accepts any length.
+#'
+#' @param n_head,head_dim Attention geometry, fixed by the closure.
+#' @return A function of \code{(x, <15 layer weights>)}.
+#' @noRd
+make_encoder_layer_fn <- function(n_head, head_dim) {
+  n_state <- n_head * head_dim
+  function(x, attn_ln_w, attn_ln_b, q_w, q_b, k_w, v_w, v_b, out_w, out_b,
+           mlp_ln_w, mlp_ln_b, fc1_w, fc1_b, fc2_w, fc2_b) {
+    b <- x$size(1)
+    split <- function(t) {
+      t$view(c(b, -1L, n_head, head_dim))$transpose(2L, 3L)
+    }
+    h <- torch::nnf_layer_norm(x, n_state, attn_ln_w, attn_ln_b)
+    q <- split(torch::nnf_linear(h, q_w, q_b))
+    k <- split(torch::nnf_linear(h, k_w))
+    v <- split(torch::nnf_linear(h, v_w, v_b))
+    a <- torch::torch_scaled_dot_product_attention(q, k, v)
+    a <- a$transpose(2L, 3L)$reshape(c(b, -1L, n_state))
+    x <- x + torch::nnf_linear(a, out_w, out_b)
+    h <- torch::nnf_layer_norm(x, n_state, mlp_ln_w, mlp_ln_b)
+    h <- torch::nnf_gelu(torch::nnf_linear(h, fc1_w, fc1_b))
+    x + torch::nnf_linear(h, fc2_w, fc2_b)
+  }
+}
+
+# Traced encoder layer functions, keyed by architecture, device, dtype and
+# batch size (the batch size is read from the input, so a trace fixes it).
+.whisper_jit_encoder_cache <- new.env(parent = emptyenv())
+
+#' The Encoder Layer Function to Run on This Input
+#'
+#' On CUDA, the layer function traced to TorchScript. Run op by op from R,
+#' every intermediate of every layer stays allocated until R's garbage
+#' collector runs; for a 30 s window that more than doubles the encoder's
+#' peak device memory (whisper-small fp32: 2.36 GiB against a 0.99 GiB
+#' working set). Inside a traced graph intermediates are freed as they are
+#' consumed. Tracing one layer with the weights as inputs, rather than the
+#' whole encoder, keeps TorchScript's compile and warm-up short, and the
+#' trace holds no weights, so resident swaps cannot leave it stale. The CPU
+#' gains nothing from it and runs the plain function, as does
+#' \code{options(whisper.jit = FALSE)}.
+#'
+#' @param block Any whisper_encoder_layer of the model (for its geometry
+#'   and example weights).
+#' @param x The layer input.
+#' @return A function of \code{(x, <15 layer weights>)}.
+#' @noRd
+encoder_layer_fn_for <- function(block, x) {
+  n_head <- block$attn$n_head
+  head_dim <- block$attn$head_dim
+  plain <- make_encoder_layer_fn(n_head, head_dim)
+  if (x$device$type != "cuda" || !isTRUE(getOption("whisper.jit", TRUE))) {
+    return(plain)
+  }
+  key <- paste(n_head, head_dim, x$device$index, x$dtype$.type(), x$size(1))
+  if (is.null(.whisper_jit_encoder_cache[[key]])) {
+    .whisper_jit_encoder_cache[[key]] <- trace_encoder_layer(plain, block, x)
+  }
+  .whisper_jit_encoder_cache[[key]]
+}
+
+# Traces the layer function and runs it at three lengths. TorchScript's
+# profiling executor specializes on static shapes twice, then compiles a
+# dynamic-shape graph; after these runs any length is served by that graph,
+# so no real window pays for compilation.
+trace_encoder_layer <- function(fn, block, x) {
+  weights <- block$weights()
+  example <- function(l) {
+    c(list(torch::torch_zeros(x$size(1), l, x$size(3), dtype = x$dtype,
+      device = x$device)), weights)
+  }
+  torch::with_no_grad({
+    traced <- do.call(torch::jit_trace, c(list(fn), example(16L)))
+    for (l in c(16L, 16L, 17L, 17L, 18L, 18L, 18L)) {
+      do.call(traced, example(l))
+    }
+  })
+  traced
+}
 
 #' Audio Encoder
 #'
@@ -232,13 +325,20 @@ whisper_encoder <- torch::nn_module(
     pos_emb <- self$positional_embedding[1:seq_len,]
     x <- x + pos_emb$unsqueeze(1L)
 
-    # Transformer layers
+    # Transformer layers: one layer function, each block's weights
+    fn <- encoder_layer_fn_for(self$blocks[[1]], x)
     for (i in seq_along(self$blocks)) {
-      x <- self$blocks[[i]](x)
+      x <- do.call(fn, c(list(x), self$blocks[[i]]$weights()))
     }
 
     # Final layer norm
     x <- self$ln_post(x)
+
+    # The layer outputs and stem temporaries are dead but held until R
+    # collects; on a GPU a minor collection (a few ms) releases them now.
+    if (x$device$type == "cuda") {
+      invisible(gc(full = FALSE))
+    }
 
     x
   }

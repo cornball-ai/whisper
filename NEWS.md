@@ -1,3 +1,27 @@
+# whisper 0.6.0.4
+
+* Lower peak GPU memory, with identical transcripts and word timings.
+  Run op by op from R, every intermediate tensor stays allocated until R's
+  garbage collector runs, which more than doubled the measured peak.
+  - On CUDA, encoder layers run as one traced TorchScript function shared
+    by all layers, which frees intermediates as it goes; the encoder ends
+    with a minor collection. `options(whisper.jit = FALSE)` runs the plain
+    function; the CPU always does.
+  - Word timestamps keep one alignment row per token (the alignment heads'
+    cross-attention, averaged) on the CPU instead of every layer and
+    head's weights on the device (whisper-small: 864 KB a token).
+  - Each decode attempt, temperature fallbacks included, ends with a full
+    collection (~70 ms), so its KV caches do not stack on the next.
+
+  Allocated peak with timestamps and word timestamps, RTX 5060 Ti:
+
+  | model, dtype, audio | before | after |
+  |---|---|---|
+  | small, fp32, 30 s | 2.25 GiB | 1.27 GiB |
+  | small, fp32, 10 min | 3.03 GiB | 1.57 GiB |
+  | large-v3-turbo, fp16, 30 s | 2.93 GiB | 1.72 GiB |
+  | large-v3-turbo, fp32, 30 s | 3.34 GiB | 3.25 GiB |
+
 # whisper 0.6.0.3
 
 * New model `"large-v3-turbo"` (`openai/whisper-large-v3-turbo`, #40):
