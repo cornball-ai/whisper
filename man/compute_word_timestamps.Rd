@@ -15,7 +15,9 @@ compute_word_timestamps(
 \arguments{
 \item{tokens}{Integer vector of generated token IDs}
 
-\item{cross_attn_weights}{List of cross-attention weight tensors per decode step}
+\item{cross_attn_weights}{List with one element per decode step: either
+that step's alignment row (numeric, from \code{.alignment_row()}) or its
+list of per-layer cross-attention tensors}
 
 \item{tokenizer}{Whisper tokenizer}
 
