@@ -12,10 +12,11 @@ whisper_dtype(device = whisper_device())
 torch dtype
 }
 \description{
-Returns float16 on CUDA, float32 on CPU. Exception: the GTX 16-series
-(TU116/TU117, e.g. GTX 1660/1650) computes float16 incorrectly and
-produces NaN output, so float32 is used on those cards. Pass an explicit
-\code{dtype = "float16"} to override.
+Returns float16 on CUDA, float32 on CPU. On the GTX 16-series
+(TU116/TU117, e.g. GTX 1660/1650), cuDNN's float16 convolution returns
+NaN, so the encoder's conv stem runs without cuDNN on those cards; the
+rest of the model is unaffected. Pass \code{dtype = "float32"} to use
+float32 instead.
 }
 \examples{
 \donttest{

@@ -1,6 +1,6 @@
 Package: whisper
 Title: Native R 'torch' Implementation of 'OpenAI' 'Whisper'
-Version: 0.6.0.3
+Version: 0.6.0.4
 Date: 2026-09-29
 Authors@R: c(
     person("Troy", "Hernandez", role = c("aut", "cre"),

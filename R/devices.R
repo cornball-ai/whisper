@@ -26,10 +26,11 @@ whisper_device <- function() {
 
 #' Get Default Dtype
 #'
-#' Returns float16 on CUDA, float32 on CPU. Exception: the GTX 16-series
-#' (TU116/TU117, e.g. GTX 1660/1650) computes float16 incorrectly and
-#' produces NaN output, so float32 is used on those cards. Pass an explicit
-#' \code{dtype = "float16"} to override.
+#' Returns float16 on CUDA, float32 on CPU. On the GTX 16-series
+#' (TU116/TU117, e.g. GTX 1660/1650), cuDNN's float16 convolution returns
+#' NaN, so the encoder's conv stem runs without cuDNN on those cards; the
+#' rest of the model is unaffected. Pass \code{dtype = "float32"} to use
+#' float32 instead.
 #'
 #' @param device torch device
 #' @return torch dtype
@@ -42,26 +43,20 @@ whisper_device <- function() {
 #' }
 #' }
 whisper_dtype <- function(device = whisper_device()) {
-  # float16 on CUDA, float32 on CPU - but fall back to float32 on GPUs with
-  # broken fp16 (see .fp16_broken_gpu).
   if (device$type == "cuda") {
-    if (.fp16_broken_gpu(device)) {
-      .fp16_warn_once()
-      torch::torch_float()
-    } else {
-      torch::torch_float16()
-    }
+    torch::torch_float16()
   } else {
     torch::torch_float()
   }
 }
 
 # The GTX 16-series (TU116/TU117: GTX 1630/1650/1660 and their Ti/Super
-# variants) computes fp16 incorrectly - it produces NaN, surfacing as
-# repeated "!" tokens in transcription, the same hardware quirk behind the
-# "GTX 1660 black image" bug in other fp16 inference stacks. Detect by GPU
-# name and fall back to fp32. CUDA-gated and tryCatch-guarded, so it never
-# runs (or errors) on a CRAN check machine.
+# variants) gets NaN from cuDNN's fp16 convolution, surfacing as repeated
+# "!" tokens in transcription, the same quirk behind the "GTX 1660 black
+# image" bug in other fp16 inference stacks. Detect by GPU name; the
+# encoder then computes its conv stem without cuDNN (see conv_stem.R).
+# CUDA-gated and tryCatch-guarded, so it never runs (or errors) on a CRAN
+# check machine.
 # GPU name for a device index, via nvidia-smi. Deliberately NOT via torch:
 # callers include the GC tuner, which must not create a CUDA context.
 .gpu_name <- function(idx = 0L) {
@@ -84,8 +79,16 @@ whisper_dtype <- function(device = whisper_device()) {
   if (is.null(idx) || is.na(idx)) {
     idx <- 0L
   }
-  .fp16_broken_name(.gpu_name(idx))
+  # Cached per index: the encoder asks on every forward, and nvidia-smi
+  # takes tens of milliseconds.
+  key <- paste0("cuda", idx)
+  if (is.null(.whisper_gpu_env[[key]])) {
+    .whisper_gpu_env[[key]] <- .fp16_broken_name(.gpu_name(idx))
+  }
+  .whisper_gpu_env[[key]]
 }
+
+.whisper_gpu_env <- new.env(parent = emptyenv())
 
 # Resolve a device argument to a CUDA index WITHOUT touching torch.
 #
@@ -129,19 +132,8 @@ whisper_dtype <- function(device = whisper_device()) {
   if (inherits(dtype, "torch_dtype")) {
     return(if (grepl("Half", as.character(dtype), fixed = TRUE)) 2 else 4)
   }
-  # "auto": fp16 on CUDA, except the GTX 16-series, which computes it wrong.
-  if (.fp16_broken_name(.gpu_name(idx))) 4 else 2
-}
-
-# One-time message per session when falling back to fp32.
-.whisper_dtype_env <- new.env(parent = emptyenv())
-.fp16_warn_once <- function() {
-  if (is.null(.whisper_dtype_env$fp16)) {
-    message("whisper: GTX 16-series GPU detected; using float32 ",
-      "(fp16 produces NaN on these cards). ",
-      "Override with dtype = \"float16\".")
-    .whisper_dtype_env$fp16 <- TRUE
-  }
+  # "auto": fp16 on CUDA
+  2
 }
 
 #' Parse Device Argument

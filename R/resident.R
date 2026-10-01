@@ -240,8 +240,8 @@
 #' starts inactive.
 #'
 #' The dtype is resolved against the *target* device with the same rules as
-#' [whisper_pipeline()]: float16 on CUDA, except GPUs with broken
-#' fp16 (GTX 16-series), which get float32. The pinned copies are stored at
+#' [whisper_pipeline()]: float16 on CUDA, float32 on CPU. The pinned copies
+#' are stored at
 #' the resolved dtype, so activation moves exactly the bytes inference needs.
 #'
 #' @param model Model name: "tiny", "base", "small", "medium", "large-v3",

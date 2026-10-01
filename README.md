@@ -134,10 +134,10 @@ It's built on base R sockets (no extra dependencies). A systemd unit ships in
   per-op R calls, several times faster than the eager path and equivalent
   token-for-token. Covers greedy and word-timestamp runs; beam search and CPU
   use the eager decoder.
-- **GTX 16-series fp16 is broken.** The GTX 1630/1650/1660 (TU116/TU117) compute
-  fp16 incorrectly and return NaN (transcription comes out as repeated `!`).
-  `whisper_dtype()` auto-falls back to float32 on those cards; pass
-  `dtype = "float16"` to override.
+- **GTX 16-series fp16 convolutions.** On the GTX 1630/1650/1660 (TU116/TU117),
+  cuDNN's fp16 convolution returns NaN (transcription comes out as repeated
+  `!`). whisper detects these cards and computes the encoder's conv stem
+  without cuDNN, so fp16 works; pass `dtype = "float32"` to use float32.
 - **`whisper_tune_gc()`** is an opt-in helper that tunes torch's CUDA allocator
   GC. It is largely inert for whisper (whisper is dispatch-bound, not
   GC-bound — JIT is the lever); it's kept as cheap insurance.

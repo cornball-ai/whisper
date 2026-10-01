@@ -2,13 +2,72 @@
 #'
 #' DTW-based alignment of tokens to audio frames using cross-attention weights.
 
+#' Alignment Heads for a Model
+#'
+#' @param config Model configuration.
+#' @return Integer matrix of 0-indexed (layer, head) pairs.
+#' @noRd
+.alignment_heads <- function(config) {
+  alignment_heads <- config$alignment_heads
+  if (is.null(alignment_heads)) {
+    # Fallback: use all heads from last half of layers
+    n_layer <- config$n_text_layer
+    n_head <- config$n_text_head
+    half <- n_layer %/% 2L
+    layers <- seq(half, n_layer - 1L)
+    heads <- seq(0L, n_head - 1L)
+    alignment_heads <- as.matrix(expand.grid(layer = layers, head = heads))
+  }
+  alignment_heads
+}
+
+#' One Decode Step's Alignment Row
+#'
+#' The last query position's cross-attention, averaged over the alignment
+#' heads, as a numeric vector on the CPU. Decoders call this as each token
+#' is produced instead of keeping the step's full per-layer weights: those
+#' hold every layer and head on the device (whisper-small: 864 KB a token,
+#' ~190 MB per 30 s window, kept until the file is done), and this row is
+#' all \code{compute_word_timestamps()} reads from them.
+#'
+#' @param step_weights List of per-layer tensors, each
+#'   \code{(batch, n_head, seq_len, n_audio_ctx)}.
+#' @param alignment_heads From \code{.alignment_heads()}.
+#' @param n_audio_ctx Encoder context length.
+#' @return Numeric vector of length \code{n_audio_ctx}.
+#' @noRd
+.alignment_row <- function(step_weights, alignment_heads, n_audio_ctx) {
+  row <- numeric(n_audio_ctx)
+  n_heads_used <- 0
+  for (h in seq_len(nrow(alignment_heads))) {
+    layer_idx <- alignment_heads[h, 1] + 1L  # 0-indexed to 1-indexed
+    head_idx <- alignment_heads[h, 2] + 1L
+    if (layer_idx <= length(step_weights) &&
+        !is.null(step_weights[[layer_idx]])) {
+      w <- step_weights[[layer_idx]]
+      # Extract specific head, last query position
+      row <- row + as.array(w[1, head_idx, w$size(3), ]$cpu())
+      n_heads_used <- n_heads_used + 1L
+    }
+  }
+  if (n_heads_used > 0) row / n_heads_used else row
+}
+
+# A decode step's alignment row, using the model's own configuration.
+.step_alignment_row <- function(model, step_weights) {
+  .alignment_row(step_weights, .alignment_heads(model$config),
+    model$config$n_audio_ctx)
+}
+
 #' Compute Word-Level Timestamps
 #'
 #' Use cross-attention weights and DTW alignment to assign timestamps
 #' to individual words.
 #'
 #' @param tokens Integer vector of generated token IDs
-#' @param cross_attn_weights List of cross-attention weight tensors per decode step
+#' @param cross_attn_weights List with one element per decode step: either
+#'   that step's alignment row (numeric, from \code{.alignment_row()}) or its
+#'   list of per-layer cross-attention tensors
 #' @param tokenizer Whisper tokenizer
 #' @param config Model configuration
 #' @param time_offset Time offset in seconds (for chunked audio)
@@ -37,48 +96,19 @@ compute_word_timestamps <- function(
     return(data.frame(word = character(0), start = numeric(0), end = numeric(0)))
   }
 
-  # Get alignment heads for this model
-  alignment_heads <- config$alignment_heads
-  if (is.null(alignment_heads)) {
-    # Fallback: use all heads from last half of layers
-    n_layer <- config$n_text_layer
-    n_head <- config$n_text_head
-    half <- n_layer %/% 2L
-    layers <- seq(half, n_layer - 1L)
-    heads <- seq(0L, n_head - 1L)
-    alignment_heads <- as.matrix(expand.grid(layer = layers, head = heads))
-  }
-
-  # Build attention matrix: average over alignment heads and decode steps
-  # Each element of cross_attn_weights is a list of per-layer tensors
-  # Each tensor has shape (batch, n_head, 1, n_audio_ctx)
+  # Attention matrix (n_steps, n_audio_ctx): one alignment row per decode
+  # step. Decoders reduce each step as they go (see .alignment_row()); a
+  # step still given as per-layer tensors is reduced here.
   n_steps <- length(cross_attn_weights)
   n_audio_ctx <- config$n_audio_ctx
-
-  # Stack attention from alignment heads across all steps
-  # Result: (n_steps, n_audio_ctx) averaged over alignment heads
+  alignment_heads <- .alignment_heads(config)
   attn_matrix <- matrix(0, nrow = n_steps, ncol = n_audio_ctx)
-
   for (step in seq_len(n_steps)) {
-    step_weights <- cross_attn_weights[[step]]
-    n_heads_used <- 0
-
-    for (h in seq_len(nrow(alignment_heads))) {
-      layer_idx <- alignment_heads[h, 1] + 1L  # 0-indexed to 1-indexed
-      head_idx <- alignment_heads[h, 2] + 1L
-
-      if (layer_idx <= length(step_weights) && !is.null(step_weights[[layer_idx]])) {
-        # step_weights[[layer_idx]] is (batch, n_head, seq_len, src_len)
-        w <- step_weights[[layer_idx]]
-        # Extract specific head, last query position
-        head_attn <- as.array(w[1, head_idx, w$size(3), ]$cpu())
-        attn_matrix[step, ] <- attn_matrix[step, ] + head_attn
-        n_heads_used <- n_heads_used + 1L
-      }
-    }
-
-    if (n_heads_used > 0) {
-      attn_matrix[step, ] <- attn_matrix[step, ] / n_heads_used
+    w <- cross_attn_weights[[step]]
+    attn_matrix[step, ] <- if (is.numeric(w)) {
+      w
+    } else {
+      .alignment_row(w, alignment_heads, n_audio_ctx)
     }
   }
 
