@@ -22,6 +22,14 @@
   | large-v3-turbo, fp16, 30 s | 2.93 GiB | 1.72 GiB |
   | large-v3-turbo, fp32, 30 s | 3.34 GiB | 3.25 GiB |
 
+* The GTX 16-series (TU116/TU117) uses float16 again. The NaN on those
+  cards comes from cuDNN's fp16 convolution (benchmark and deterministic
+  modes included); matmul, attention and norms are correct. The encoder's
+  conv stem now runs as unfold + matmul there instead of falling back to
+  float32 for the whole model. On a GTX 1660 Ti with the stem off cuDNN,
+  large-v3-turbo in fp16 transcribed like fp32 with a 1.59 GiB allocated
+  peak (30 s, word timestamps); its fp32 weights alone are 3.01 GiB.
+
 # whisper 0.6.0.3
 
 * New model `"large-v3-turbo"` (`openai/whisper-large-v3-turbo`, #40):

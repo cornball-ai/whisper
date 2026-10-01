@@ -304,9 +304,16 @@ whisper_encoder <- torch::nn_module(
   forward = function(x) {
     # x: (batch, n_mels, n_frames) mel spectrogram
 
-    # Conv stem with GELU
-    x <- torch::nnf_gelu(self$conv1(x))
-    x <- torch::nnf_gelu(self$conv2(x))
+    # Conv stem with GELU; off cuDNN where its fp16 conv is broken
+    if (.stem_needs_unfold(x)) {
+      x <- torch::nnf_gelu(conv1d_unfold(x, self$conv1$weight,
+        self$conv1$bias))
+      x <- torch::nnf_gelu(conv1d_unfold(x, self$conv2$weight,
+        self$conv2$bias, stride = 2L))
+    } else {
+      x <- torch::nnf_gelu(self$conv1(x))
+      x <- torch::nnf_gelu(self$conv2(x))
+    }
 
     # (batch, n_state, n_frames/2) -> (batch, n_frames/2, n_state)
     x <- x$permute(c(1L, 3L, 2L))
