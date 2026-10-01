@@ -16,12 +16,11 @@
 #' }
 #' }
 whisper_device <- function() {
-
-  if (torch::cuda_is_available()) {
-    torch::torch_device("cuda")
-  } else {
-    torch::torch_device("cpu")
-  }
+    if (torch::cuda_is_available()) {
+        torch::torch_device("cuda")
+    } else {
+        torch::torch_device("cpu")
+    }
 }
 
 #' Get Default Dtype
@@ -43,11 +42,11 @@ whisper_device <- function() {
 #' }
 #' }
 whisper_dtype <- function(device = whisper_device()) {
-  if (device$type == "cuda") {
-    torch::torch_float16()
-  } else {
-    torch::torch_float()
-  }
+    if (device$type == "cuda") {
+        torch::torch_float16()
+    } else {
+        torch::torch_float()
+    }
 }
 
 # The GTX 16-series (TU116/TU117: GTX 1630/1650/1660 and their Ti/Super
@@ -60,32 +59,33 @@ whisper_dtype <- function(device = whisper_device()) {
 # GPU name for a device index, via nvidia-smi. Deliberately NOT via torch:
 # callers include the GC tuner, which must not create a CUDA context.
 .gpu_name <- function(idx = 0L) {
-  name <- tryCatch(
-    system2("nvidia-smi", c("--query-gpu=name", "--format=csv,noheader",
-      paste0("--id=", idx)), stdout = TRUE)[1],
-    error = function(e) NA_character_)
-  if (length(name) != 1L || is.na(name) || !nzchar(name)) NA_character_ else name
+    query <- c("--query-gpu=name", "--format=csv,noheader",
+               paste0("--id=", idx))
+    name <- tryCatch(system2("nvidia-smi", query, stdout = TRUE)[1],
+                     error = function(e) NA_character_)
+    if (length(name) != 1L || is.na(name) ||
+        !nzchar(name)) NA_character_ else name
 }
 
 .fp16_broken_name <- function(name) {
-  !is.na(name) && grepl("GTX\\s*16", name, ignore.case = TRUE)
+    !is.na(name) && grepl("GTX\\s*16", name, ignore.case = TRUE)
 }
 
 .fp16_broken_gpu <- function(device = whisper_device()) {
-  if (!inherits(device, "torch_device") || device$type != "cuda") {
-    return(FALSE)
-  }
-  idx <- device$index
-  if (is.null(idx) || is.na(idx)) {
-    idx <- 0L
-  }
-  # Cached per index: the encoder asks on every forward, and nvidia-smi
-  # takes tens of milliseconds.
-  key <- paste0("cuda", idx)
-  if (is.null(.whisper_gpu_env[[key]])) {
-    .whisper_gpu_env[[key]] <- .fp16_broken_name(.gpu_name(idx))
-  }
-  .whisper_gpu_env[[key]]
+    if (!inherits(device, "torch_device") || device$type != "cuda") {
+        return(FALSE)
+    }
+    idx <- device$index
+    if (is.null(idx) || is.na(idx)) {
+        idx <- 0L
+    }
+    # Cached per index: the encoder asks on every forward, and nvidia-smi
+    # takes tens of milliseconds.
+    key <- paste0("cuda", idx)
+    if (is.null(.whisper_gpu_env[[key]])) {
+        .whisper_gpu_env[[key]] <- .fp16_broken_name(.gpu_name(idx))
+    }
+    .whisper_gpu_env[[key]]
 }
 
 .whisper_gpu_env <- new.env(parent = emptyenv())
@@ -100,40 +100,40 @@ whisper_dtype <- function(device = whisper_device()) {
 #
 # Returns an integer index for CUDA, or NULL for "no CUDA target".
 .gc_device_index <- function(device) {
-  if (inherits(device, "torch_device")) {
-    device <- as.character(device)
-  }
-  if (!is.character(device) || length(device) != 1L || is.na(device)) {
-    return(NULL)
-  }
-  if (identical(device, "auto")) {
-    # A GPU that nvidia-smi can see is the best available signal without
-    # creating a context. If there is none, there is nothing to tune.
-    if (is.na(.gpu_name(0L))) {
-      return(NULL)
+    if (inherits(device, "torch_device")) {
+        device <- as.character(device)
     }
-    return(0L)
-  }
-  if (!grepl("^cuda", device)) {
-    return(NULL)
-  }
-  idx <- suppressWarnings(as.integer(sub("^cuda:?", "", device)))
-  if (length(idx) != 1L || is.na(idx)) 0L else idx
+    if (!is.character(device) || length(device) != 1L || is.na(device)) {
+        return(NULL)
+    }
+    if (identical(device, "auto")) {
+        # A GPU that nvidia-smi can see is the best available signal without
+        # creating a context. If there is none, there is nothing to tune.
+        if (is.na(.gpu_name(0L))) {
+            return(NULL)
+        }
+        return(0L)
+    }
+    if (!grepl("^cuda", device)) {
+        return(NULL)
+    }
+    idx <- suppressWarnings(as.integer(sub("^cuda:?", "", device)))
+    if (length(idx) != 1L || is.na(idx)) 0L else idx
 }
 
 # Bytes per parameter for a dtype argument, without allocating a tensor.
 .gc_element_bytes <- function(dtype, idx) {
-  if (identical(dtype, "float32")) {
-    return(4)
-  }
-  if (identical(dtype, "float16")) {
-    return(2)
-  }
-  if (inherits(dtype, "torch_dtype")) {
-    return(if (grepl("Half", as.character(dtype), fixed = TRUE)) 2 else 4)
-  }
-  # "auto": fp16 on CUDA
-  2
+    if (identical(dtype, "float32")) {
+        return(4)
+    }
+    if (identical(dtype, "float16")) {
+        return(2)
+    }
+    if (inherits(dtype, "torch_dtype")) {
+        return(if (grepl("Half", as.character(dtype), fixed = TRUE)) 2 else 4)
+    }
+    # "auto": fp16 on CUDA
+    2
 }
 
 #' Parse Device Argument
@@ -141,16 +141,15 @@ whisper_dtype <- function(device = whisper_device()) {
 #' @param device Character or torch device. "auto" uses GPU if available.
 #' @return torch device object
 parse_device <- function(device = "auto") {
-
-  if (is.character(device)) {
-    if (device == "auto") {
-      whisper_device()
+    if (is.character(device)) {
+        if (device == "auto") {
+            whisper_device()
+        } else {
+            torch::torch_device(device)
+        }
     } else {
-      torch::torch_device(device)
+        device
     }
-  } else {
-    device
-  }
 }
 
 #' Parse Dtype Argument
@@ -158,23 +157,21 @@ parse_device <- function(device = "auto") {
 #' @param dtype Character or torch dtype. "auto" uses float16 on GPU, float32 on CPU.
 #' @param device torch device (used for auto selection)
 #' @return torch dtype
-parse_dtype <- function(
-  dtype = "auto",
-  device = whisper_device()
-) {
-  if (is.character(dtype)) {
-    if (dtype == "auto") {
-      whisper_dtype(device)
-    } else if (dtype == "float16") {
-      torch::torch_float16()
-    } else if (dtype == "float32") {
-      torch::torch_float()
+parse_dtype <- function(dtype = "auto", device = whisper_device()) {
+    if (is.character(dtype)) {
+        if (dtype == "auto") {
+            whisper_dtype(device)
+        } else if (dtype == "float16") {
+            torch::torch_float16()
+        } else if (dtype == "float32") {
+            torch::torch_float()
+        } else {
+            stop("Unknown dtype: ", dtype,
+                 ". Supported: auto, float16, float32")
+        }
     } else {
-      stop("Unknown dtype: ", dtype, ". Supported: auto, float16, float32")
+        dtype
     }
-  } else {
-    dtype
-  }
 }
 
 #' Tune torch's CUDA garbage collection for whisper inference
@@ -233,58 +230,49 @@ parse_dtype <- function(
 #' @export
 whisper_tune_gc <- function(model = "large-v3", device = "auto",
                             dtype = "auto", footprint_gb = NULL) {
-  # Nothing in this function may touch torch. It exists to set options that
-  # torch reads exactly once, at CUDA init, so any call that initializes
-  # CUDA first -- parse_device("auto"), parse_dtype(), allocating a tensor
-  # to measure its element size -- makes the whole thing a silent no-op:
-  # the options get set after they were read, and the message still claims
-  # success. Device resolution and dtype sizing therefore go through
-  # .gc_device_index()/.gc_element_bytes(), which use strings and
-  # nvidia-smi only.
-  idx <- .gc_device_index(device)
-  if (is.null(idx)) {
-    return(invisible(NULL))
-  }
-  if (is.null(getOption("torch.threshold_call_gc"))) {
-    options(torch.threshold_call_gc = 16000)
-  }
-  if (!is.null(getOption("torch.cuda_allocator_reserved_rate"))) {
-    return(invisible(NULL))
-  }
-  if (is.null(footprint_gb)) {
-    el_bytes <- .gc_element_bytes(dtype, idx)
-    footprint_gb <- .whisper_param_count(model) * el_bytes / 1e9
-  }
-  total_gb <- tryCatch(
-    as.numeric(system2("nvidia-smi",
-      c("--query-gpu=memory.total", "--format=csv,noheader,nounits",
-        paste0("--id=", idx)), stdout = TRUE)[1]) / 1024,
-    error = function(e) NA_real_)
-  if (is.na(total_gb) || total_gb <= 0 ||
-      is.na(footprint_gb) || footprint_gb <= 0) {
-    return(invisible(NULL))
-  }
-  rate <- min(0.92, max(0.20, footprint_gb / total_gb))
-  options(torch.cuda_allocator_reserved_rate = rate)
-  message(sprintf(paste0("whisper: torch.cuda_allocator_reserved_rate = %.2f,",
-    " threshold_call_gc = %d MB (%.1f GB model, %.0f GB VRAM)"),
-    rate, getOption("torch.threshold_call_gc"), footprint_gb, total_gb))
-  invisible(rate)
+    # Nothing in this function may touch torch. It exists to set options that
+    # torch reads exactly once, at CUDA init, so any call that initializes
+    # CUDA first -- parse_device("auto"), parse_dtype(), allocating a tensor
+    # to measure its element size -- makes the whole thing a silent no-op:
+    # the options get set after they were read, and the message still claims
+    # success. Device resolution and dtype sizing therefore go through
+    # .gc_device_index()/.gc_element_bytes(), which use strings and
+    # nvidia-smi only.
+    idx <- .gc_device_index(device)
+    if (is.null(idx)) {
+        return(invisible(NULL))
+    }
+    if (is.null(getOption("torch.threshold_call_gc"))) {
+        options(torch.threshold_call_gc = 16000)
+    }
+    if (!is.null(getOption("torch.cuda_allocator_reserved_rate"))) {
+        return(invisible(NULL))
+    }
+    if (is.null(footprint_gb)) {
+        el_bytes <- .gc_element_bytes(dtype, idx)
+        footprint_gb <- .whisper_param_count(model) * el_bytes / 1e9
+    }
+    total_gb <- tryCatch(
+                         as.numeric(system2("nvidia-smi",
+                c("--query-gpu=memory.total", "--format=csv,noheader,nounits",
+                    paste0("--id=", idx)), stdout = TRUE)[1]) / 1024,
+                         error = function(e) NA_real_)
+    if (is.na(total_gb) || total_gb <= 0 ||
+        is.na(footprint_gb) || footprint_gb <= 0) {
+        return(invisible(NULL))
+    }
+    rate <- min(0.92, max(0.20, footprint_gb / total_gb))
+    options(torch.cuda_allocator_reserved_rate = rate)
+    message(sprintf(paste0("whisper: torch.cuda_allocator_reserved_rate = %.2f,",
+                           " threshold_call_gc = %d MB (%.1f GB model, %.0f GB VRAM)"),
+                    rate, getOption("torch.threshold_call_gc"), footprint_gb, total_gb))
+    invisible(rate)
 }
 
 # Approximate parameter count per whisper model, for the GC footprint estimate.
 .whisper_param_count <- function(model) {
-  m <- sub("\\.en$", "", tolower(model))
-  switch(m,
-    tiny = 39e6,
-    base = 74e6,
-    small = 244e6,
-    medium = 769e6,
-    "large-v3-turbo" = 809e6,
-    "large" = 1550e6,
-    "large-v1" = 1550e6,
-    "large-v2" = 1550e6,
-    "large-v3" = 1550e6,
-    1550e6)
+    m <- sub("\\.en$", "", tolower(model))
+    switch(m, tiny = 39e6, base = 74e6, small = 244e6, medium = 769e6,
+           "large-v3-turbo" = 809e6, "large" = 1550e6, "large-v1" = 1550e6,
+           "large-v2" = 1550e6, "large-v3" = 1550e6, 1550e6)
 }
-

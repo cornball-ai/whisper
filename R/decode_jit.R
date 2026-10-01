@@ -29,16 +29,16 @@
 #' @return The compiled script function
 #' @noRd
 .get_whisper_jit_decode_step <- function(n_layers, n_heads, head_dim, eps) {
-  key <- paste(n_layers, n_heads, head_dim, eps, sep = "_")
-  if (!is.null(.whisper_jit_decode_cache[[key]])) {
-    return(.whisper_jit_decode_cache[[key]])
-  }
+    key <- paste(n_layers, n_heads, head_dim, eps, sep = "_")
+    if (!is.null(.whisper_jit_decode_cache[[key]])) {
+        return(.whisper_jit_decode_cache[[key]])
+    }
 
-  # ATen-builtin calls only (torch.matmul/torch.gelu/torch.layer_norm are
-  # resolvable in this lantern's TorchScript environment; the
-  # torch.nn.functional namespace is not). LayerNorm is done by hand in
-  # float for fp16 parity, matching torch's eager nn_layer_norm.
-  src <- sprintf("
+    # ATen-builtin calls only (torch.matmul/torch.gelu/torch.layer_norm are
+    # resolvable in this lantern's TorchScript environment; the
+    # torch.nn.functional namespace is not). LayerNorm is done by hand in
+    # float for fp16 parity, matching torch's eager nn_layer_norm.
+    src <- "
 def ln(x: Tensor, w: Tensor, b: Tensor, eps: float) -> Tensor:
     xf = x.float()
     mean = xf.mean(-1, keepdim=True)
@@ -83,12 +83,13 @@ def decode_step(x: Tensor, w: List[Tensor], gw: List[Tensor],
         h = torch.matmul(h, w[b + 19].t()) + w[b + 20]
         x = resid + h
     return ln(x, gw[0], gw[1], eps)
-",
-    n_layers, n_heads, head_dim, format(eps, scientific = FALSE))
+"
+    src <- sprintf(src, n_layers, n_heads, head_dim,
+                   format(eps, scientific = FALSE))
 
-  cu <- torch::jit_compile(src)
-  .whisper_jit_decode_cache[[key]] <- cu$decode_step
-  cu$decode_step
+    cu <- torch::jit_compile(src)
+    .whisper_jit_decode_cache[[key]] <- cu$decode_step
+    cu$decode_step
 }
 
 #' Build the decode step that also returns cross-attention weights
@@ -103,12 +104,13 @@ def decode_step(x: Tensor, w: List[Tensor], gw: List[Tensor],
 #' @param n_layers,n_heads,head_dim,eps Decoder architecture parameters
 #' @return The compiled script function returning a (hidden, xattn) tuple
 #' @noRd
-.get_whisper_jit_decode_step_xattn <- function(n_layers, n_heads, head_dim, eps) {
-  key <- paste("x", n_layers, n_heads, head_dim, eps, sep = "_")
-  if (!is.null(.whisper_jit_decode_cache[[key]])) {
-    return(.whisper_jit_decode_cache[[key]])
-  }
-  src <- sprintf("
+.get_whisper_jit_decode_step_xattn <- function(n_layers, n_heads, head_dim,
+    eps) {
+    key <- paste("x", n_layers, n_heads, head_dim, eps, sep = "_")
+    if (!is.null(.whisper_jit_decode_cache[[key]])) {
+        return(.whisper_jit_decode_cache[[key]])
+    }
+    src <- "
 def ln(x: Tensor, w: Tensor, b: Tensor, eps: float) -> Tensor:
     xf = x.float()
     mean = xf.mean(-1, keepdim=True)
@@ -155,13 +157,14 @@ def decode_step_x(x: Tensor, w: List[Tensor], gw: List[Tensor],
         h = torch.matmul(h, w[b + 19].t()) + w[b + 20]
         x = resid + h
     return (ln(x, gw[0], gw[1], eps), torch.stack(xws))
-",
-    n_layers, n_heads, head_dim, format(eps, scientific = FALSE),
-    format(sqrt(head_dim), nsmall = 1))
+"
+    src <- sprintf(src, n_layers, n_heads, head_dim,
+                   format(eps, scientific = FALSE),
+                   format(sqrt(head_dim), nsmall = 1))
 
-  cu <- torch::jit_compile(src)
-  .whisper_jit_decode_cache[[key]] <- cu$decode_step_x
-  cu$decode_step_x
+    cu <- torch::jit_compile(src)
+    .whisper_jit_decode_cache[[key]] <- cu$decode_step_x
+    cu$decode_step_x
 }
 
 #' Extract per-layer decoder weights in decode-step order
@@ -175,25 +178,25 @@ def decode_step_x(x: Tensor, w: List[Tensor], gw: List[Tensor],
 #' @return Flat list of n_layer * 21 tensors
 #' @noRd
 .get_whisper_layer_weights <- function(decoder) {
-  n_layers <- length(decoder$blocks)
-  layers <- vector("list", n_layers)
-  for (i in seq_len(n_layers)) {
-    layer <- decoder$blocks[[i]]
-    layers[[i]] <- list(
-      layer$attn_ln$weight, layer$attn_ln$bias,
-      layer$attn$query$weight, layer$attn$query$bias,
-      layer$attn$key$weight,
-      layer$attn$value$weight, layer$attn$value$bias,
-      layer$attn$out$weight, layer$attn$out$bias,
-      layer$cross_attn_ln$weight, layer$cross_attn_ln$bias,
-      layer$cross_attn$query$weight, layer$cross_attn$query$bias,
-      layer$cross_attn$out$weight, layer$cross_attn$out$bias,
-      layer$mlp_ln$weight, layer$mlp_ln$bias,
-      layer$mlp[[1]]$weight, layer$mlp[[1]]$bias,
-      layer$mlp[[3]]$weight, layer$mlp[[3]]$bias
-    )
-  }
-  do.call(c, layers)
+    n_layers <- length(decoder$blocks)
+    layers <- vector("list", n_layers)
+    for (i in seq_len(n_layers)) {
+        layer <- decoder$blocks[[i]]
+        layers[[i]] <- list(layer$attn_ln$weight, layer$attn_ln$bias,
+                            layer$attn$query$weight, layer$attn$query$bias,
+                            layer$attn$key$weight, layer$attn$value$weight,
+                            layer$attn$value$bias, layer$attn$out$weight,
+                            layer$attn$out$bias, layer$cross_attn_ln$weight,
+                            layer$cross_attn_ln$bias,
+                            layer$cross_attn$query$weight,
+                            layer$cross_attn$query$bias,
+                            layer$cross_attn$out$weight,
+                            layer$cross_attn$out$bias, layer$mlp_ln$weight,
+                            layer$mlp_ln$bias, layer$mlp[[1]]$weight,
+                            layer$mlp[[1]]$bias, layer$mlp[[3]]$weight,
+                            layer$mlp[[3]]$bias)
+    }
+    do.call(c, layers)
 }
 
 #' Greedy Decoding with a TorchScript decode loop
@@ -220,135 +223,128 @@ def decode_step_x(x: Tensor, w: List[Tensor], gw: List[Tensor],
 #' @param device Device
 #' @return List with tokens, cross_attn_weights, sum_logprob, n_tokens
 #' @keywords internal
-greedy_decode_jit <- function(
-  model,
-  encoder_output,
-  initial_tokens,
-  tokenizer,
-  max_length = 224L,
-  timestamps = FALSE,
-  word_timestamps = FALSE,
-  suppress_blank = TRUE,
-  device
-) {
-  special <- whisper_special_tokens(tokenizer$model)
-  decoder <- model$decoder
-  n_layers <- length(decoder$blocks)
-  n_heads <- decoder$blocks[[1]]$attn$n_head
-  head_dim <- decoder$blocks[[1]]$attn$head_dim
-  eps <- 1e-5
+greedy_decode_jit <- function(model, encoder_output, initial_tokens,
+                              tokenizer, max_length = 224L,
+                              timestamps = FALSE, word_timestamps = FALSE,
+                              suppress_blank = TRUE, device) {
+    special <- whisper_special_tokens(tokenizer$model)
+    decoder <- model$decoder
+    n_layers <- length(decoder$blocks)
+    n_heads <- decoder$blocks[[1]]$attn$n_head
+    head_dim <- decoder$blocks[[1]]$attn$head_dim
+    eps <- 1e-5
 
-  need_w <- isTRUE(word_timestamps)
-  step_fn <- if (need_w) {
-    .get_whisper_jit_decode_step_xattn(n_layers, n_heads, head_dim, eps)
-  } else {
-    .get_whisper_jit_decode_step(n_layers, n_heads, head_dim, eps)
-  }
-  wflat <- .get_whisper_layer_weights(decoder)
-  gw <- list(decoder$ln$weight, decoder$ln$bias)
-  tok_emb_w <- decoder$token_embedding$weight
-  pos_emb_w <- decoder$positional_embedding$weight
-
-  generated <- as.integer(as.array(initial_tokens$cpu()))
-  sample_begin <- length(generated)
-  cond_len <- sample_begin
-  sum_logprob <- 0
-  n_tokens <- 0L
-  all_cross_attn <- if (need_w) list() else NULL
-
-  torch::with_no_grad({
-    # Eager prefill on the initial prompt: gives the first logits and the
-    # self + cross KV caches (and, for word timestamps, the prompt's
-    # cross-attention weights -- the eager path's first collected step).
-    result <- model$decode(initial_tokens, encoder_output, kv_cache = NULL,
-      need_weights = need_w)
-    kv <- result$kv_cache
-    dtype <- tok_emb_w$dtype
-    # cur_xattn holds the cross-attn weights of the forward that produced
-    # the current next_logits (prompt prefill to start).
-    cur_xattn <- if (need_w) result$cross_attn_weights else NULL
-
-    # Stack cross-attention K/V (constant for the whole generation)
-    ck <- torch::torch_stack(lapply(kv, function(l) l$cross$k), dim = 1L)
-    cv <- torch::torch_stack(lapply(kv, function(l) l$cross$v), dim = 1L)
-
-    # Pre-allocate the self-attention KV cache and seed it from prefill
-    k_cache <- torch::torch_zeros(n_layers, 1L, n_heads, max_length, head_dim,
-      device = device, dtype = dtype)
-    v_cache <- torch::torch_zeros_like(k_cache)
-    for (l in seq_len(n_layers)) {
-      k_cache[l, , , 1:cond_len, ] <- kv[[l]]$self$k
-      v_cache[l, , , 1:cond_len, ] <- kv[[l]]$self$v
+    need_w <- isTRUE(word_timestamps)
+    step_fn <- if (need_w) {
+        .get_whisper_jit_decode_step_xattn(n_layers, n_heads, head_dim, eps)
+    } else {
+        .get_whisper_jit_decode_step(n_layers, n_heads, head_dim, eps)
     }
+    wflat <- .get_whisper_layer_weights(decoder)
+    gw <- list(decoder$ln$weight, decoder$ln$bias)
+    tok_emb_w <- decoder$token_embedding$weight
+    pos_emb_w <- decoder$positional_embedding$weight
 
-    logits <- result$logits
-    no_speech_prob <- .no_speech_prob(logits, generated, special)
-    next_logits <- logits[, logits$size(2), ]
-    # Suppression masks (SuppressTokens / SuppressBlank), same as the eager
-    # path so JIT and eager stay token-for-token equivalent.
-    nv <- next_logits$size(2)
-    supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv, device,
-      next_logits$dtype)
-    blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv, device,
-      next_logits$dtype)
-    pos <- cond_len  # 0-based position of the next token to generate
+    generated <- as.integer(as.array(initial_tokens$cpu()))
+    sample_begin <- length(generated)
+    cond_len <- sample_begin
+    sum_logprob <- 0
+    n_tokens <- 0L
+    all_cross_attn <- if (need_w) list() else NULL
 
-    for (i in seq_len(max_length)) {
-      if (length(generated) >= max_length) break
+    torch::with_no_grad({
+        # Eager prefill on the initial prompt: gives the first logits and the
+        # self + cross KV caches (and, for word timestamps, the prompt's
+        # cross-attention weights -- the eager path's first collected step).
+        result <- model$decode(initial_tokens, encoder_output,
+                               kv_cache = NULL, need_weights = need_w)
+        kv <- result$kv_cache
+        dtype <- tok_emb_w$dtype
+        # cur_xattn holds the cross-attn weights of the forward that produced
+        # the current next_logits (prompt prefill to start).
+        cur_xattn <- if (need_w) result$cross_attn_weights else NULL
 
-      next_logits <- next_logits + supp_mask
-      if (suppress_blank && length(generated) == sample_begin) {
-        next_logits <- next_logits + blank_mask
-      }
-      if (timestamps) {
-        next_logits <- apply_timestamp_rules(next_logits, generated,
-          special, sample_begin)
-      }
+        # Stack cross-attention K/V (constant for the whole generation)
+        ck <- torch::torch_stack(lapply(kv, function(l) l$cross$k), dim = 1L)
+        cv <- torch::torch_stack(lapply(kv, function(l) l$cross$v), dim = 1L)
 
-      log_probs <- torch::nnf_log_softmax(next_logits, dim = -1L)
-      next_token <- next_logits$argmax(dim = -1L)
-      next_token_id <- as.integer(next_token$item()) - 1L
+        # Pre-allocate the self-attention KV cache and seed it from prefill
+        k_cache <- torch::torch_zeros(n_layers, 1L, n_heads, max_length, head_dim,
+                                      device = device, dtype = dtype)
+        v_cache <- torch::torch_zeros_like(k_cache)
+        for (l in seq_len(n_layers)) {
+            k_cache[l,,, 1:cond_len,] <- kv[[l]]$self$k
+            v_cache[l,,, 1:cond_len,] <- kv[[l]]$self$v
+        }
 
-      sum_logprob <- sum_logprob +
-        as.numeric(log_probs[1, next_token$item()]$item())
-      n_tokens <- n_tokens + 1L
+        logits <- result$logits
+        no_speech_prob <- .no_speech_prob(logits, generated, special)
+        next_logits <- logits[, logits$size(2),]
+        # Suppression masks (SuppressTokens / SuppressBlank), same as the eager
+        # path so JIT and eager stay token-for-token equivalent.
+        nv <- next_logits$size(2)
+        supp_mask <- .suppress_mask(tokenizer$suppress_tokens, nv, device,
+                                    next_logits$dtype)
+        blank_mask <- .suppress_mask(tokenizer$blank_tokens, nv, device,
+                                     next_logits$dtype)
+        pos <- cond_len # 0-based position of the next token to generate
 
-      if (next_token_id == special$eot) break
+        for (i in seq_len(max_length)) {
+            if (length(generated) >= max_length) break
 
-      generated <- c(generated, next_token_id)
-      # cur_xattn is the cross-attn of the forward that predicted this token
-      # (matching the eager path's per-step collection order).
-      if (need_w) {
-        all_cross_attn <- c(all_cross_attn,
-          list(.step_alignment_row(model, cur_xattn)))
-      }
-      if (length(generated) >= max_length) break
+            next_logits <- next_logits + supp_mask
+            if (suppress_blank && length(generated) == sample_begin) {
+                next_logits <- next_logits + blank_mask
+            }
+            if (timestamps) {
+                next_logits <- apply_timestamp_rules(next_logits, generated,
+                    special, sample_begin)
+            }
 
-      # Embed the new token at its absolute position (both lookups
-      # 1-indexed: token id + 1, position + 1) and run the decoder step.
-      x <- (tok_emb_w[next_token_id + 1L, ] +
-        pos_emb_w[pos + 1L, ])$view(c(1L, 1L, -1L))
-      if (need_w) {
-        out <- step_fn(x, wflat, gw, k_cache, v_cache, ck, cv,
-          torch::jit_scalar(pos), torch::jit_scalar(pos + 1L))
-        hidden <- out[[1]]
-        xw <- out[[2]]  # (n_layers, B, n_head, 1, src); split to per-layer list
-        cur_xattn <- lapply(seq_len(n_layers), function(l) xw[l, , , , ])
-      } else {
-        hidden <- step_fn(x, wflat, gw, k_cache, v_cache, ck, cv,
-          torch::jit_scalar(pos), torch::jit_scalar(pos + 1L))
-      }
-      logits <- torch::torch_matmul(hidden, tok_emb_w$t())
-      next_logits <- logits[, logits$size(2), ]
-      pos <- pos + 1L
-    }
-  })
+            log_probs <- torch::nnf_log_softmax(next_logits, dim = -1L)
+            next_token <- next_logits$argmax(dim = -1L)
+            next_token_id <- as.integer(next_token$item()) - 1L
 
-  list(
-    tokens = generated,
-    cross_attn_weights = all_cross_attn,
-    sum_logprob = sum_logprob,
-    n_tokens = n_tokens,
-    no_speech_prob = no_speech_prob
-  )
+            sum_logprob <- sum_logprob +
+            as.numeric(log_probs[1, next_token$item()]$item())
+            n_tokens <- n_tokens + 1L
+
+            if (next_token_id == special$eot) break
+
+            generated <- c(generated, next_token_id)
+            # cur_xattn is the cross-attn of the forward that predicted this token
+            # (matching the eager path's per-step collection order).
+            if (need_w) {
+                all_cross_attn <- c(all_cross_attn,
+                                    list(.step_alignment_row(model, cur_xattn)))
+            }
+            if (length(generated) >= max_length) break
+
+            # Embed the new token at its absolute position (both lookups
+            # 1-indexed: token id + 1, position + 1) and run the decoder step.
+            x <- (tok_emb_w[next_token_id + 1L,] +
+                        pos_emb_w[pos + 1L,])$view(c(1L, 1L, -1L))
+            if (need_w) {
+                out <- step_fn(x, wflat, gw, k_cache, v_cache, ck, cv,
+                               torch::jit_scalar(pos), torch::jit_scalar(pos + 1L))
+                hidden <- out[[1]]
+                xw <- out[[2]] # (n_layers, B, n_head, 1, src); split to per-layer list
+                cur_xattn <- lapply(seq_len(n_layers), function(l) xw[l,,,,])
+            } else {
+                hidden <- step_fn(x, wflat, gw, k_cache, v_cache, ck, cv,
+                                  torch::jit_scalar(pos), torch::jit_scalar(pos + 1L))
+            }
+            logits <- torch::torch_matmul(hidden, tok_emb_w$t())
+            next_logits <- logits[, logits$size(2),]
+            pos <- pos + 1L
+        }
+    })
+
+    list(
+         tokens = generated,
+         cross_attn_weights = all_cross_attn,
+         sum_logprob = sum_logprob,
+         n_tokens = n_tokens,
+         no_speech_prob = no_speech_prob
+    )
 }

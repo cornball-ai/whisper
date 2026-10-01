@@ -18,13 +18,13 @@ VAD_FRAME_MS <- 32 # 512 / 16000 * 1000
 .silero_md5 <- "cbd961c3faa3246cdd62aefdea2fdbde"
 
 .silero_url <- function() {
-  paste0("https://raw.githubusercontent.com/snakers4/silero-vad/",
-    .silero_commit, "/src/silero_vad/data/silero_vad.jit")
+    paste0("https://raw.githubusercontent.com/snakers4/silero-vad/",
+           .silero_commit, "/src/silero_vad/data/silero_vad.jit")
 }
 
 .vad_cache_path <- function() {
-  file.path(tools::R_user_dir("whisper", "cache"), "vad",
-    paste0("silero_vad_", .silero_version, ".jit"))
+    file.path(tools::R_user_dir("whisper", "cache"), "vad",
+              paste0("silero_vad_", .silero_version, ".jit"))
 }
 
 #' Download the Silero VAD Model
@@ -43,87 +43,85 @@ VAD_FRAME_MS <- 32 # 512 / 16000 * 1000
 #' download_vad_model()
 #' }
 download_vad_model <- function(force = FALSE) {
-  path <- .vad_cache_path()
-  if (!force && file.exists(path)) {
-    return(invisible(path))
-  }
-
-  # Same consent gate as download_whisper_model (CRAN compliance).
-  if (isTRUE(getOption("whisper.consent"))) {
-    # Consent already given programmatically
-  } else if (interactive()) {
-    ans <- utils::askYesNo(
-      "Download the Silero VAD model (~2 MB) from GitHub?",
-      default = TRUE
-    )
-    if (!isTRUE(ans)) {
-      stop("Download cancelled.", call. = FALSE)
+    path <- .vad_cache_path()
+    if (!force && file.exists(path)) {
+        return(invisible(path))
     }
-  } else {
-    stop(
-      "Cannot download the VAD model in non-interactive mode without ",
-      "consent. Run download_vad_model() interactively first, or set ",
-      "options(whisper.consent = TRUE) to allow downloads.",
-      call. = FALSE
-    )
-  }
 
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  tmp <- tempfile("silero_vad_", tmpdir = dirname(path), fileext = ".tmp")
-  on.exit(unlink(tmp), add = TRUE)
-  status <- utils::download.file(.silero_url(), tmp, mode = "wb",
-    quiet = TRUE)
-  if (status != 0L || !file.exists(tmp)) {
-    stop("Failed to download the Silero VAD model from ", .silero_url(),
-      call. = FALSE)
-  }
-  got <- unname(tools::md5sum(tmp))
-  if (!identical(got, .silero_md5)) {
-    stop("Silero VAD download does not match the pinned checksum ",
-      "(expected ", .silero_md5, ", got ", got, "). Refusing to load it.",
-      call. = FALSE)
-  }
-  if (!file.rename(tmp, path)) {
-    stop("Could not move the downloaded VAD model into place at ", path,
-      call. = FALSE)
-  }
-  message("VAD model downloaded to: ", path)
-  invisible(path)
+    # Same consent gate as download_whisper_model (CRAN compliance).
+    if (isTRUE(getOption("whisper.consent"))) {
+        # Consent already given programmatically
+    } else if (interactive()) {
+        ans <- utils::askYesNo(
+                               "Download the Silero VAD model (~2 MB) from GitHub?",
+                               default = TRUE
+        )
+        if (!isTRUE(ans)) {
+            stop("Download cancelled.", call. = FALSE)
+        }
+    } else {
+        stop("Cannot download the VAD model in non-interactive mode without ",
+             "consent. Run download_vad_model() interactively first, or set ",
+             "options(whisper.consent = TRUE) to allow downloads.",
+             call. = FALSE)
+    }
+
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    tmp <- tempfile("silero_vad_", tmpdir = dirname(path), fileext = ".tmp")
+    on.exit(unlink(tmp), add = TRUE)
+    status <- utils::download.file(.silero_url(), tmp, mode = "wb",
+                                   quiet = TRUE)
+    if (status != 0L || !file.exists(tmp)) {
+        stop("Failed to download the Silero VAD model from ", .silero_url(),
+             call. = FALSE)
+    }
+    got <- unname(tools::md5sum(tmp))
+    if (!identical(got, .silero_md5)) {
+        stop("Silero VAD download does not match the pinned checksum ",
+             "(expected ", .silero_md5, ", got ", got, "). Refusing to load it.",
+             call. = FALSE)
+    }
+    if (!file.rename(tmp, path)) {
+        stop("Could not move the downloaded VAD model into place at ", path,
+             call. = FALSE)
+    }
+    message("VAD model downloaded to: ", path)
+    invisible(path)
 }
 
 # Load the Silero VAD TorchScript module (always CPU: ~1 ms per frame,
 # not worth a GPU round trip).
 load_vad_model <- function(download = TRUE) {
-  path <- .vad_cache_path()
-  if (!file.exists(path)) {
-    if (!download) {
-      stop("Silero VAD model not found. Run download_vad_model() first.",
-        call. = FALSE)
+    path <- .vad_cache_path()
+    if (!file.exists(path)) {
+        if (!download) {
+            stop("Silero VAD model not found. Run download_vad_model() first.",
+                 call. = FALSE)
+        }
+        download_vad_model()
     }
-    download_vad_model()
-  }
-  torch::jit_load(path)
+    torch::jit_load(path)
 }
 
 # Reset Silero's internal recurrent state (between independent streams).
 vad_reset <- function(vad) {
-  try(vad$reset_states(), silent = TRUE)
-  invisible(NULL)
+    try(vad$reset_states(), silent = TRUE)
+    invisible(NULL)
 }
 
 # Speech probability for one 512-sample frame of float audio in [-1, 1].
 vad_frame_prob <- function(vad, frame) {
-  chunk <- torch::torch_tensor(matrix(frame, nrow = 1L),
-    dtype = torch::torch_float())
-  as.numeric(vad(chunk, torch::jit_scalar(16000L)))
+    chunk <- torch::torch_tensor(matrix(frame, nrow = 1L),
+                                 dtype = torch::torch_float())
+    as.numeric(vad(chunk, torch::jit_scalar(16000L)))
 }
 
 # Energy fallback (vad = "energy" in whisper_stream): a graded RMS score
 # in [0, 1], honestly weaker than Silero -- a breath and a sentence end
 # look identical to it, and it will hold turns open on AEC residue.
 energy_frame_prob <- function(frame, full_scale_rms = 0.02) {
-  rms <- sqrt(mean(frame ^ 2))
-  min(1, rms / full_scale_rms)
+    rms <- sqrt(mean(frame ^ 2))
+    min(1, rms / full_scale_rms)
 }
 
 # --- Turn state machine (pure R) ---------------------------------------
@@ -140,28 +138,23 @@ energy_frame_prob <- function(frame, full_scale_rms = 0.02) {
 # (`silence_target_ms`) because the stream layer adapts it per tick from
 # the transcript tail (punctuation-aware endpointing).
 
-vad_sm <- function(
-  onset_prob = 0.5,
-  offset_prob = 0.35,
-  min_speech_ms = 250,
-  endpoint_silence_ms = 700,
-  pre_roll_ms = 320
-) {
-  list(
-    onset_prob = onset_prob,
-    offset_prob = offset_prob,
-    min_speech_ms = min_speech_ms,
-    endpoint_silence_ms = endpoint_silence_ms,
-    silence_target_ms = endpoint_silence_ms,
-    pre_roll_ms = pre_roll_ms,
-    state = "listening",
-    frame = 0L, # frames consumed so far (absolute)
-    run_start = NA_integer_, # first frame of the current speech run
-    run_ms = 0, # length of the current speech run (listening)
-    silence_ms = 0, # trailing non-speech (in_speech)
-    last_speech_frame = NA_integer_, # last frame that scored as speech
-    turn_speech_ms = 0 # speech accumulated in the open turn
-  )
+vad_sm <- function(onset_prob = 0.5, offset_prob = 0.35, min_speech_ms = 250,
+                   endpoint_silence_ms = 700, pre_roll_ms = 320) {
+    list(
+         onset_prob = onset_prob,
+         offset_prob = offset_prob,
+         min_speech_ms = min_speech_ms,
+         endpoint_silence_ms = endpoint_silence_ms,
+         silence_target_ms = endpoint_silence_ms,
+         pre_roll_ms = pre_roll_ms,
+         state = "listening",
+         frame = 0L, # frames consumed so far (absolute)
+         run_start = NA_integer_, # first frame of the current speech run
+         run_ms = 0, # length of the current speech run (listening)
+         silence_ms = 0, # trailing non-speech (in_speech)
+         last_speech_frame = NA_integer_, # last frame that scored as speech
+         turn_speech_ms = 0 # speech accumulated in the open turn
+    )
 }
 
 # One frame. Returns list(sm, event) where event is NULL, or
@@ -169,54 +162,55 @@ vad_sm <- function(
 # the speech run, pre-roll NOT included (the stream layer applies it) --
 # or list(type = "endpoint", end_frame =) -- the last speech frame.
 vad_sm_step <- function(sm, prob) {
-  sm$frame <- sm$frame + 1L
-  event <- NULL
+    sm$frame <- sm$frame + 1L
+    event <- NULL
 
-  if (sm$state == "listening") {
-    in_run <- !is.na(sm$run_start)
-    # Written pre-expanded: rformat's expand_if rewrites an if-else nested
-    # inside a comparison into branch assignments of the *thresholds*,
-    # which are always truthy -- silently turning every frame into speech.
-    if (in_run) {
-      is_speech <- prob >= sm$offset_prob
-    } else {
-      is_speech <- prob >= sm$onset_prob
+    if (sm$state == "listening") {
+        in_run <- !is.na(sm$run_start)
+        # Written pre-expanded: rformat's expand_if rewrites an if-else nested
+        # inside a comparison into branch assignments of the *thresholds*,
+        # which are always truthy -- silently turning every frame into speech.
+        if (in_run) {
+            is_speech <- prob >= sm$offset_prob
+        } else {
+            is_speech <- prob >= sm$onset_prob
+        }
+        if (is_speech) {
+            if (!in_run) {
+                sm$run_start <- sm$frame
+                sm$run_ms <- 0
+            }
+            sm$run_ms <- sm$run_ms + VAD_FRAME_MS
+            sm$last_speech_frame <- sm$frame
+            if (sm$run_ms >= sm$min_speech_ms) {
+                sm$state <- "in_speech"
+                sm$silence_ms <- 0
+                sm$turn_speech_ms <- sm$run_ms
+                event <- list(type = "onset", start_frame = sm$run_start)
+            }
+        } else {
+            sm$run_start <- NA_integer_
+            sm$run_ms <- 0
+        }
+    } else { # in_speech
+        if (prob >= sm$offset_prob) {
+            sm$silence_ms <- 0
+            sm$last_speech_frame <- sm$frame
+            sm$turn_speech_ms <- sm$turn_speech_ms + VAD_FRAME_MS
+        } else {
+            sm$silence_ms <- sm$silence_ms + VAD_FRAME_MS
+            if (sm$silence_ms >= sm$silence_target_ms) {
+                event <- list(type = "endpoint",
+                              end_frame = sm$last_speech_frame)
+                sm$state <- "listening"
+                sm$run_start <- NA_integer_
+                sm$run_ms <- 0
+                sm$silence_ms <- 0
+                sm$turn_speech_ms <- 0
+                sm$silence_target_ms <- sm$endpoint_silence_ms
+            }
+        }
     }
-    if (is_speech) {
-      if (!in_run) {
-        sm$run_start <- sm$frame
-        sm$run_ms <- 0
-      }
-      sm$run_ms <- sm$run_ms + VAD_FRAME_MS
-      sm$last_speech_frame <- sm$frame
-      if (sm$run_ms >= sm$min_speech_ms) {
-        sm$state <- "in_speech"
-        sm$silence_ms <- 0
-        sm$turn_speech_ms <- sm$run_ms
-        event <- list(type = "onset", start_frame = sm$run_start)
-      }
-    } else {
-      sm$run_start <- NA_integer_
-      sm$run_ms <- 0
-    }
-  } else { # in_speech
-    if (prob >= sm$offset_prob) {
-      sm$silence_ms <- 0
-      sm$last_speech_frame <- sm$frame
-      sm$turn_speech_ms <- sm$turn_speech_ms + VAD_FRAME_MS
-    } else {
-      sm$silence_ms <- sm$silence_ms + VAD_FRAME_MS
-      if (sm$silence_ms >= sm$silence_target_ms) {
-        event <- list(type = "endpoint", end_frame = sm$last_speech_frame)
-        sm$state <- "listening"
-        sm$run_start <- NA_integer_
-        sm$run_ms <- 0
-        sm$silence_ms <- 0
-        sm$turn_speech_ms <- 0
-        sm$silence_target_ms <- sm$endpoint_silence_ms
-      }
-    }
-  }
 
-  list(sm = sm, event = event)
+    list(sm = sm, event = event)
 }
