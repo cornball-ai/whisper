@@ -29,29 +29,29 @@
 #' @return Sorted integer vector of 0-indexed token IDs.
 #' @keywords internal
 .non_speech_token_ids <- function(encode) {
-  # list('"#()*+/:;<=>@[\]^_`{|}~') plus the CJK corner brackets
-  indiv <- strsplit('"#()*+/:;<=>@[\\]^_`{|}~', "")[[1]]
-  corner <- intToUtf8(c(0x300C, 0x300D, 0x300E, 0x300F), multiple = TRUE)
-  # the .split() list, including (' (" and the music-note runs. The note runs
-  # are built with intToUtf8 so this source file stays ASCII (CRAN portability).
-  multi <- c(
-    strsplit("<< >> <<< >>> -- --- -( -[ (' (\" (( )) ((( ))) [[ ]] {{ }}",
-      " ")[[1]],
-    intToUtf8(rep(0x266A, 2L)), intToUtf8(rep(0x266A, 3L)))
-  musical <- intToUtf8(c(0x2669, 0x266A, 0x266B, 0x266C, 0x266D, 0x266E, 0x266F),
-    multiple = TRUE)
-  symbols <- c(indiv, corner, multi)
+    # list('"#()*+/:;<=>@[\]^_`{|}~') plus the CJK corner brackets
+    indiv <- strsplit('"#()*+/:;<=>@[\\]^_`{|}~', "")[[1]]
+    corner <- intToUtf8(c(0x300C, 0x300D, 0x300E, 0x300F), multiple = TRUE)
+    # the .split() list, including (' (" and the music-note runs. The note runs
+    # are built with intToUtf8 so this source file stays ASCII (CRAN portability).
+    multi <- c(
+               strsplit("<< >> <<< >>> -- --- -( -[ (' (\" (( )) ((( ))) [[ ]] {{ }}",
+                        " ")[[1]],
+               intToUtf8(rep(0x266A, 2L)), intToUtf8(rep(0x266A, 3L)))
+    musical <- intToUtf8(c(0x2669, 0x266A, 0x266B, 0x266C, 0x266D, 0x266E, 0x266F),
+                         multiple = TRUE)
+    symbols <- c(indiv, corner, multi)
 
-  # allow "-" and "'" between words: suppress only their word-initial token
-  result <- c(encode(" -")[1], encode(" '")[1])
-  for (sym in c(symbols, musical)) {
-    for (toks in list(encode(sym), encode(paste0(" ", sym)))) {
-      if (length(toks) == 1L || sym %in% musical) {
-        result <- c(result, toks[1])
-      }
+    # allow "-" and "'" between words: suppress only their word-initial token
+    result <- c(encode(" -")[1], encode(" '")[1])
+    for (sym in c(symbols, musical)) {
+        for (toks in list(encode(sym), encode(paste0(" ", sym)))) {
+            if (length(toks) == 1L || sym %in% musical) {
+                result <- c(result, toks[1])
+            }
+        }
     }
-  }
-  sort(unique(as.integer(result)))
+    sort(unique(as.integer(result)))
 }
 
 #' Token IDs suppressed at every decode step
@@ -65,10 +65,9 @@
 #' @return Sorted integer vector of 0-indexed token IDs.
 #' @keywords internal
 .decode_suppress_ids <- function(encode, special) {
-  ctrl <- c(special$translate, special$transcribe,
-    special$sot_lm, special$sot_prev,
-    special$sot, special$no_speech)
-  sort(unique(as.integer(c(.non_speech_token_ids(encode), ctrl))))
+    ctrl <- c(special$translate, special$transcribe, special$sot_lm,
+              special$sot_prev, special$sot, special$no_speech)
+    sort(unique(as.integer(c(.non_speech_token_ids(encode), ctrl))))
 }
 
 #' Token IDs suppressed at the first decode step (SuppressBlank)
@@ -78,7 +77,7 @@
 #' @return Sorted integer vector of 0-indexed token IDs.
 #' @keywords internal
 .blank_token_ids <- function(encode, special) {
-  sort(unique(as.integer(c(encode(" "), special$eot))))
+    sort(unique(as.integer(c(encode(" "), special$eot))))
 }
 
 #' No-speech probability from the prompt prefill
@@ -94,12 +93,12 @@
 #' @return Scalar no-speech probability (numeric).
 #' @keywords internal
 .no_speech_prob <- function(logits, generated, special) {
-  sot_pos <- match(special$sot, generated)
-  if (is.na(sot_pos)) {
-    sot_pos <- 1L
-  }
-  probs <- torch::nnf_softmax(logits[1, sot_pos, ], dim = -1L)
-  as.numeric(probs[special$no_speech + 1L]$item())
+    sot_pos <- match(special$sot, generated)
+    if (is.na(sot_pos)) {
+        sot_pos <- 1L
+    }
+    probs <- torch::nnf_softmax(logits[1, sot_pos,], dim = -1L)
+    as.numeric(probs[special$no_speech + 1L]$item())
 }
 
 #' Build an additive logit mask (-Inf at suppressed positions, 0 elsewhere)
@@ -114,8 +113,8 @@
 #' @return A \code{(1, n_vocab)} tensor.
 #' @keywords internal
 .suppress_mask <- function(ids0, n_vocab, device, dtype) {
-  v <- numeric(n_vocab)
-  ids1 <- ids0[ids0 >= 0L & ids0 < n_vocab] + 1L
-  v[ids1] <- -Inf
-  torch::torch_tensor(v, device = device, dtype = dtype)$view(c(1L, n_vocab))
+    v <- numeric(n_vocab)
+    ids1 <- ids0[ids0 >= 0L & ids0 < n_vocab] + 1L
+    v[ids1] <- -Inf
+    torch::torch_tensor(v, device = device, dtype = dtype)$view(c(1L, n_vocab))
 }

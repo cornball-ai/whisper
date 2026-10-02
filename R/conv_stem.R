@@ -10,24 +10,18 @@
 
 # conv1d as unfold + matmul.
 # x (N, C_in, L), weight (C_out, C_in, K), bias (C_out) -> (N, C_out, L_out)
-conv1d_unfold <- function(
-  x,
-  weight,
-  bias,
-  stride = 1L,
-  padding = 1L
-) {
-  k <- weight$size(3)
-  x <- torch::nnf_pad(x, c(padding, padding))
-  # (N, C_in, L_out, K) -> (N, L_out, C_in * K), C_in-major like the weight
-  cols <- x$unfold(-1L, k, stride)$permute(c(1L, 3L, 2L, 4L))
-  cols <- cols$flatten(start_dim = 3L)
-  out <- torch::nnf_linear(cols, weight$flatten(start_dim = 2L), bias)
-  out$transpose(2L, 3L)
+conv1d_unfold <- function(x, weight, bias, stride = 1L, padding = 1L) {
+    k <- weight$size(3)
+    x <- torch::nnf_pad(x, c(padding, padding))
+    # (N, C_in, L_out, K) -> (N, L_out, C_in * K), C_in-major like the weight
+    cols <- x$unfold(-1L, k, stride)$permute(c(1L, 3L, 2L, 4L))
+    cols <- cols$flatten(start_dim = 3L)
+    out <- torch::nnf_linear(cols, weight$flatten(start_dim = 2L), bias)
+    out$transpose(2L, 3L)
 }
 
 # Whether the stem must avoid cuDNN for this input: fp16 on a GTX 16-series.
 .stem_needs_unfold <- function(x) {
-  x$device$type == "cuda" && x$dtype == torch::torch_float16() &&
+    x$device$type == "cuda" && x$dtype == torch::torch_float16() &&
     .fp16_broken_gpu(x$device)
 }

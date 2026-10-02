@@ -15,10 +15,10 @@
 #'
 #' @noRd
 format_hms <- function(t) {
-  ms <- round(as.numeric(t) * 1000)
-  ms[!is.finite(ms) | ms < 0] <- 0
-  sprintf("%02d:%02d:%06.3f", ms %/% 3600000, (ms %% 3600000) %/% 60000,
-    (ms %% 60000) / 1000)
+    ms <- round(as.numeric(t) * 1000)
+    ms[!is.finite(ms) | ms < 0] <- 0
+    sprintf("%02d:%02d:%06.3f", ms %/% 3600000, (ms %% 3600000) %/% 60000,
+            (ms %% 60000) / 1000)
 }
 
 #' Attach the Subtitle-Tool Shape to a Transcription Result
@@ -48,18 +48,16 @@ format_hms <- function(t) {
 #'
 #' @noRd
 attach_subtitle_shape <- function(result) {
-  segs <- result$segments
-  if (is.null(segs) || nrow(segs) == 0) {
-    return(result)
-  }
+    segs <- result$segments
+    if (is.null(segs) || nrow(segs) == 0) {
+        return(result)
+    }
 
-  result$data <- data.frame(
-    from = format_hms(segs$start),
-    to = format_hms(segs$end),
-    text = segs$text,
-    stringsAsFactors = FALSE)
-  class(result) <- c("whisper_result", "whisper_transcription")
-  result
+    result$data <- data.frame(from = format_hms(segs$start),
+                              to = format_hms(segs$end), text = segs$text,
+                              stringsAsFactors = FALSE)
+    class(result) <- c("whisper_result", "whisper_transcription")
+    result
 }
 
 #' Print a Transcription Result
@@ -71,16 +69,16 @@ attach_subtitle_shape <- function(result) {
 #'
 #' @export
 print.whisper_result <- function(x, ...) {
-  cat("<whisper transcription>\n")
-  cat("  model:    ", x$model, "\n", sep = "")
-  cat("  language: ", x$language, "\n", sep = "")
-  if (!is.null(x$duration)) {
-    cat("  duration: ", sprintf("%.2fs", x$duration), "\n", sep = "")
-  }
-  cat("  segments: ", nrow(x$segments), "\n", sep = "")
-  if (!is.null(x$words)) {
-    cat("  words:    ", nrow(x$words), "\n", sep = "")
-  }
-  cat("\n", strwrap(x$text, width = 0.9 * getOption("width")), sep = "\n")
-  invisible(x)
+    cat("<whisper transcription>\n")
+    cat("  model:    ", x$model, "\n", sep = "")
+    cat("  language: ", x$language, "\n", sep = "")
+    if (!is.null(x$duration)) {
+        cat("  duration: ", sprintf("%.2fs", x$duration), "\n", sep = "")
+    }
+    cat("  segments: ", nrow(x$segments), "\n", sep = "")
+    if (!is.null(x$words)) {
+        cat("  words:    ", nrow(x$words), "\n", sep = "")
+    }
+    cat("\n", strwrap(x$text, width = 0.9 * getOption("width")), sep = "\n")
+    invisible(x)
 }

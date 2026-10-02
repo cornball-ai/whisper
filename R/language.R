@@ -28,19 +28,13 @@
 #'   result$probabilities
 #' }
 #' }
-detect_language <- function(
-  file,
-  model = "tiny",
-  device = "auto",
-  dtype = "auto",
-  top_k = 5L,
-  download = TRUE,
-  verbose = TRUE
-) {
-  pipe <- whisper_pipeline(model, device = device, dtype = dtype,
-    download = download, verbose = verbose)
+detect_language <- function(file, model = "tiny", device = "auto",
+                            dtype = "auto", top_k = 5L, download = TRUE,
+                            verbose = TRUE) {
+    pipe <- whisper_pipeline(model, device = device, dtype = dtype,
+                             download = download, verbose = verbose)
 
-  detect_language_from_pipeline(pipe, file, top_k = top_k)
+    detect_language_from_pipeline(pipe, file, top_k = top_k)
 }
 
 #' Detect Language from Pipeline
@@ -52,16 +46,16 @@ detect_language <- function(
 #' @param top_k Number of top probabilities to return
 #' @return List with language code and probabilities
 detect_language_from_pipeline <- function(pipe, file, top_k = 5L) {
-  config <- pipe$config
-  model <- pipe$model
-  device <- pipe$device
-  dtype <- pipe$dtype
+    config <- pipe$config
+    model <- pipe$model
+    device <- pipe$device
+    dtype <- pipe$dtype
 
-  # Compute mel spectrogram from first 30s
-  mel <- audio_to_mel(file, n_mels = config$n_mels, device = device,
-    dtype = dtype)
+    # Compute mel spectrogram from first 30s
+    mel <- audio_to_mel(file, n_mels = config$n_mels, device = device,
+                        dtype = dtype)
 
-  detect_language_from_mel(model, mel, config, device)
+    detect_language_from_mel(model, mel, config, device)
 }
 
 #' Detect Language from Mel Spectrogram
@@ -75,43 +69,41 @@ detect_language_from_pipeline <- function(pipe, file, top_k = 5L) {
 #' @param top_k Number of top probabilities to return
 #' @return List with language code and probabilities
 detect_language_from_mel <- function(model, mel, config, device, top_k = 5L) {
-  special <- whisper_special_tokens(config$model_name)
-  langs <- whisper_language_table()
-  n_langs <- length(langs)
+    special <- whisper_special_tokens(config$model_name)
+    langs <- whisper_language_table()
+    n_langs <- length(langs)
 
-  # Language token IDs: 50259 to 50259 + n_langs - 1
-  lang_start <- 50259L
-  lang_end <- lang_start + n_langs - 1L
+    # Language token IDs: 50259 to 50259 + n_langs - 1
+    lang_start <- 50259L
+    lang_end <- lang_start + n_langs - 1L
 
-  torch::with_no_grad({
-    # Encode audio
-    encoder_output <- model$encode(mel)
+    torch::with_no_grad({
+        # Encode audio
+        encoder_output <- model$encode(mel)
 
-    # Feed just the SOT token to the decoder
-    sot <- torch::torch_tensor(matrix(special$sot, nrow = 1L),
-      dtype = torch::torch_long(), device = device)
+        # Feed just the SOT token to the decoder
+        sot <- torch::torch_tensor(matrix(special$sot, nrow = 1L),
+                                   dtype = torch::torch_long(),
+                                   device = device)
 
-    result <- model$decode(sot, encoder_output)
-    # logits shape: (1, 1, n_vocab)
-    logits <- result$logits[1, 1, ]
+        result <- model$decode(sot, encoder_output)
+        # logits shape: (1, 1, n_vocab)
+        logits <- result$logits[1, 1,]
 
-    # Extract language token logits (R is 1-indexed, token IDs are 0-indexed in vocab)
-    # Token ID 50259 is at position 50260 in 1-indexed logits
-    lang_logits <- logits[(lang_start + 1L):(lang_end + 1L)]
+        # Extract language token logits (R is 1-indexed, token IDs are 0-indexed in vocab)
+        # Token ID 50259 is at position 50260 in 1-indexed logits
+        lang_logits <- logits[(lang_start + 1L):(lang_end + 1L)]
 
-    # Softmax over language logits only
-    probs <- torch::nnf_softmax(lang_logits, dim = 1L)
-    probs_r <- as.numeric(probs$cpu())
-  })
+        # Softmax over language logits only
+        probs <- torch::nnf_softmax(lang_logits, dim = 1L)
+        probs_r <- as.numeric(probs$cpu())
+    })
 
-  names(probs_r) <- names(langs)
+    names(probs_r) <- names(langs)
 
-  # Find top-k
-  top_idx <- order(probs_r, decreasing = TRUE)[seq_len(min(top_k, n_langs))]
-  top_probs <- probs_r[top_idx]
+    # Find top-k
+    top_idx <- order(probs_r, decreasing = TRUE)[seq_len(min(top_k, n_langs))]
+    top_probs <- probs_r[top_idx]
 
-  list(
-    language = names(probs_r)[top_idx[1]],
-    probabilities = top_probs
-  )
+    list(language = names(probs_r)[top_idx[1]], probabilities = top_probs)
 }
